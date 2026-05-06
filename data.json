@@ -1,22 +1,22 @@
 {
   "meta": {
-    "generated_at": "2026-05-06T12:30:45+00:00",
+    "generated_at": "2026-05-06T12:48:31+00:00",
     "wallet": "0x6639985946d3016B83Ca5Cf1667810DAc3587202",
     "window_start_ts": 1777884900,
-    "window_end_ts": 1778070000,
-    "n_total_records": 521,
-    "n_btc_records": 498
+    "window_end_ts": 1778071500,
+    "n_total_records": 523,
+    "n_btc_records": 500
   },
   "kpi": {
-    "total_pnl": 112.14245999999997,
-    "n_markets": 215,
+    "total_pnl": 95.10745999999996,
+    "n_markets": 216,
     "n_winners": 169,
-    "n_losers": 46,
-    "win_rate_pct": 78.6046511627907,
-    "avg_pnl": 0.5215928372093022,
+    "n_losers": 47,
+    "win_rate_pct": 78.24074074074075,
+    "avg_pnl": 0.44031231481481464,
     "median_pnl": 0.1999999999999993,
-    "rot": 0.050233946392917644,
-    "total_buy_volume": 2232.403943,
+    "rot": 0.04222486836589594,
+    "total_buy_volume": 2252.403943,
     "running_days": 3,
     "total_rebates": 2.0149
   },
@@ -2492,6 +2492,26 @@
     {
       "t": 1778070000000,
       "v": 112.14245999999997
+    },
+    {
+      "t": 1778070300000,
+      "v": 112.14245999999997
+    },
+    {
+      "t": 1778070600000,
+      "v": 112.14245999999997
+    },
+    {
+      "t": 1778070900000,
+      "v": 112.14245999999997
+    },
+    {
+      "t": 1778071200000,
+      "v": 112.14245999999997
+    },
+    {
+      "t": 1778071500000,
+      "v": 95.10745999999997
     }
   ],
   "regime": [
@@ -2515,9 +2535,9 @@
     },
     {
       "bin": "[0.3,0.4)",
-      "avg_pnl": 0.19283957142857147,
+      "avg_pnl": 0.19283957142857133,
       "n_markets": 7,
-      "total_pnl": 1.3498770000000002
+      "total_pnl": 1.3498769999999993
     },
     {
       "bin": "[0.4,0.5)",
@@ -2539,15 +2559,15 @@
     },
     {
       "bin": "[0.7,0.8)",
-      "avg_pnl": 0.10846877777777778,
+      "avg_pnl": 0.10846877777777768,
       "n_markets": 18,
-      "total_pnl": 1.952438
+      "total_pnl": 1.9524379999999981
     },
     {
       "bin": "[0.8,0.9)",
-      "avg_pnl": 0.3970878947368419,
-      "n_markets": 19,
-      "total_pnl": 7.544669999999996
+      "avg_pnl": -0.4745165000000002,
+      "n_markets": 20,
+      "total_pnl": -9.490330000000004
     },
     {
       "bin": "[0.9,1.0]",
@@ -2573,16 +2593,25 @@
       "pnl": 11.099999999999998
     },
     "worst": {
-      "title": "Bitcoin Up or Down - May 4, 10:55PM-11:00PM ET",
+      "title": "Bitcoin Up or Down - May 6, 8:40AM-8:45AM ET",
       "outcome": "Down",
-      "market_end_ts": 1777950000,
-      "weighted_entry_price": 0.9200000000000002,
-      "n_buys": 1,
-      "total_buy_size": 10.0,
-      "pnl": -9.252989999999999
+      "market_end_ts": 1778071500,
+      "weighted_entry_price": 0.845,
+      "n_buys": 2,
+      "total_buy_size": 20.0,
+      "pnl": -17.035
     }
   },
   "recent": [
+    {
+      "title": "Bitcoin Up or Down - May 6, 8:40AM-8:45AM ET",
+      "outcome": "Down",
+      "market_end_ts": 1778071500,
+      "weighted_entry_price": 0.845,
+      "n_buys": 2,
+      "total_buy_size": 20.0,
+      "pnl": -17.035
+    },
     {
       "title": "Bitcoin Up or Down - May 6, 8:15AM-8:20AM ET",
       "outcome": "Up",
@@ -2608,7 +2637,7 @@
       "weighted_entry_price": 0.39,
       "n_buys": 3,
       "total_buy_size": 10.0,
-      "pnl": 6.1000000000000005
+      "pnl": 6.1
     },
     {
       "title": "Bitcoin Up or Down - May 6, 7:25AM-7:30AM ET",
@@ -2689,7 +2718,7 @@
       "weighted_entry_price": 0.72,
       "n_buys": 3,
       "total_buy_size": 20.0,
-      "pnl": -4.572799999999999
+      "pnl": -4.572800000000001
     },
     {
       "title": "Bitcoin Up or Down - May 6, 4:15AM-4:20AM ET",
@@ -2789,15 +2818,6 @@
       "n_buys": 3,
       "total_buy_size": 9.995819,
       "pnl": 7.896697
-    },
-    {
-      "title": "Bitcoin Up or Down - May 6, 2:45AM-2:50AM ET",
-      "outcome": "Up",
-      "market_end_ts": 1778050200,
-      "weighted_entry_price": 0.9399999999999998,
-      "n_buys": 2,
-      "total_buy_size": 10.0,
-      "pnl": 0.5999999999999996
     }
   ]
 }
