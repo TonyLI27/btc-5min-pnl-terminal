@@ -1,0 +1,1081 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC · 5MIN · LIVE PnL TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root {
+  --bg-base:     #06090d;
+  --bg-panel:    #0c1218;
+  --bg-panel-2:  #10171f;
+  --border:      #1c2630;
+  --border-hot:  #2a3a4d;
+  --text-hi:     #e7eef5;
+  --text-mid:    #8a9bad;
+  --text-lo:     #4a5868;
+  --accent:      #5eead4;
+  --accent-glow: rgba(94, 234, 212, 0.25);
+  --neg:         #fb7185;
+  --neg-glow:    rgba(251, 113, 133, 0.22);
+  --gold:        #f5b942;
+  --gold-glow:   rgba(245, 185, 66, 0.22);
+  --blue:        #60a5fa;
+  --violet:      #a78bfa;
+  --live:        #34d399;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg-base);
+  color: var(--text-hi);
+  font-family: "JetBrains Mono", "Consolas", "Microsoft YaHei", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+body::before {
+  /* Background grid */
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(94, 234, 212, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 234, 212, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  pointer-events: none;
+  z-index: 0;
+  animation: gridDrift 90s linear infinite;
+}
+body::after {
+  /* Ambient radial glows + scanlines */
+  content: "";
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(94, 234, 212, 0.08), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(167, 139, 250, 0.07), transparent 60%),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px);
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes gridDrift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 64px 64px, 64px 64px; }
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 28px 36px 64px;
+}
+
+/* ---------------- Top bar ---------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+  position: relative;
+}
+.topbar::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+  animation: sweep 8s ease-in-out infinite;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+.brand {
+  display: flex; align-items: center; gap: 14px;
+}
+.brand-mark {
+  width: 34px; height: 34px;
+  border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700; font-size: 17px;
+  color: var(--accent);
+  position: relative;
+  background: rgba(94, 234, 212, 0.05);
+  letter-spacing: 0.05em;
+}
+.brand-mark::before, .brand-mark::after {
+  content: ""; position: absolute; width: 6px; height: 6px;
+  border: 1px solid var(--accent);
+}
+.brand-mark::before { top: -3px; left: -3px; border-right: 0; border-bottom: 0; }
+.brand-mark::after  { bottom: -3px; right: -3px; border-left: 0; border-top: 0; }
+.brand-text {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-hi);
+}
+.brand-text .sep { color: var(--accent); margin: 0 8px; }
+.brand-sub {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--text-lo);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.status-row {
+  display: flex; align-items: center; gap: 24px;
+  font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-mid);
+}
+.status-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 11px;
+  border: 1px solid var(--border-hot);
+  background: var(--bg-panel);
+  font-family: "JetBrains Mono", monospace;
+}
+.status-pill.live { color: var(--live); border-color: rgba(52, 211, 153, 0.35); }
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+  animation: livePulse 1.6s ease-out infinite;
+}
+@keyframes livePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+  70%  { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+.status-row code {
+  color: var(--text-hi);
+  font-family: "JetBrains Mono", monospace;
+}
+#countdown { color: var(--accent); min-width: 30px; display: inline-block; text-align: right; }
+
+/* ---------------- Masthead block ---------------- */
+.masthead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+.masthead h1 {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 0 6px;
+  color: var(--text-hi);
+  line-height: 1.1;
+}
+.masthead h1 em {
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 700;
+}
+.masthead .desc {
+  color: var(--text-mid);
+  font-size: 12px;
+  max-width: 720px;
+  letter-spacing: 0.02em;
+}
+.wallet-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-hot);
+  background: var(--bg-panel);
+  color: var(--text-mid);
+  display: flex; flex-direction: column; gap: 2px;
+  text-align: right;
+}
+.wallet-pill .label {
+  font-size: 9px; letter-spacing: 0.2em;
+  color: var(--text-lo); text-transform: uppercase;
+}
+.wallet-pill .addr { color: var(--accent); }
+
+/* ---------------- KPI strip ---------------- */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.kpi {
+  position: relative;
+  padding: 18px 18px 16px;
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.kpi::before, .kpi::after {
+  content: ""; position: absolute;
+  width: 12px; height: 12px;
+  border-color: var(--accent);
+  border-style: solid;
+  border-width: 0;
+  opacity: 0.55;
+}
+.kpi::before { top: 6px; left: 6px; border-top-width: 1px; border-left-width: 1px; }
+.kpi::after  { bottom: 6px; right: 6px; border-bottom-width: 1px; border-right-width: 1px; }
+.kpi:hover { border-color: var(--border-hot); }
+.kpi:hover::before, .kpi:hover::after { opacity: 1; }
+.kpi .label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+.kpi .value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-hi);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.kpi .unit {
+  font-size: 12px;
+  color: var(--text-lo);
+  margin-left: 4px;
+  font-weight: 400;
+}
+.kpi .sub {
+  font-size: 10px;
+  color: var(--text-mid);
+  margin-top: 6px;
+  letter-spacing: 0.05em;
+}
+.kpi.pos .value { color: var(--accent); text-shadow: 0 0 18px var(--accent-glow); }
+.kpi.neg .value { color: var(--neg);    text-shadow: 0 0 18px var(--neg-glow); }
+.kpi.gold .value { color: var(--gold);  text-shadow: 0 0 18px var(--gold-glow); }
+
+/* ---------------- Panel cards ---------------- */
+.row {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.row.r-1   { grid-template-columns: 1fr; }
+.row.r-2-1 { grid-template-columns: 1.4fr 1fr; }
+.row.r-1-1 { grid-template-columns: 1fr 1fr; }
+
+.panel {
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 18px 22px 22px;
+}
+.panel::before, .panel::after,
+.panel > .br1, .panel > .br2 {
+  content: ""; position: absolute;
+  width: 14px; height: 14px;
+  pointer-events: none;
+  border-style: solid; border-width: 0;
+  border-color: var(--accent);
+  opacity: 0.5;
+  transition: opacity .25s ease;
+}
+.panel::before     { top: -1px; left: -1px;     border-top-width: 1px;    border-left-width: 1px; }
+.panel::after      { top: -1px; right: -1px;    border-top-width: 1px;    border-right-width: 1px; }
+.panel > .br1      { bottom: -1px; left: -1px;  border-bottom-width: 1px; border-left-width: 1px; }
+.panel > .br2      { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; }
+.panel:hover::before, .panel:hover::after,
+.panel:hover > .br1, .panel:hover > .br2 { opacity: 1; }
+
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+.panel-title {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-hi);
+}
+.panel-title .num {
+  color: var(--accent);
+  margin-right: 8px;
+  font-weight: 700;
+}
+.panel-meta {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-lo);
+  text-transform: uppercase;
+}
+.chart {
+  width: 100%;
+  height: 360px;
+}
+.chart.tall  { height: 420px; }
+.chart.short { height: 280px; }
+
+/* ---------------- Tables ---------------- */
+table.dt {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+}
+table.dt thead th {
+  text-align: left;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+  font-weight: 500;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(94, 234, 212, 0.02);
+}
+table.dt tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px dashed var(--border);
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
+table.dt tbody td.title {
+  color: var(--text-hi);
+  font-size: 11px;
+}
+table.dt tbody tr:hover td {
+  background: rgba(94, 234, 212, 0.025);
+  color: var(--text-hi);
+}
+table.dt td.right { text-align: right; }
+table.dt .pos { color: var(--accent); }
+table.dt .neg { color: var(--neg); }
+table.dt .gold { color: var(--gold); }
+table.dt .tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 9.5px; letter-spacing: 0.1em;
+  border: 1px solid var(--border-hot);
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+table.dt .tag.up   { color: var(--accent); border-color: rgba(94, 234, 212, 0.4); }
+table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4); }
+
+.scroll-box { max-height: 380px; overflow-y: auto; }
+.scroll-box::-webkit-scrollbar { width: 6px; }
+.scroll-box::-webkit-scrollbar-track { background: transparent; }
+.scroll-box::-webkit-scrollbar-thumb { background: var(--border-hot); }
+
+/* ---------------- Extremes panel ---------------- */
+.extremes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.ext-card {
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ext-card .tag {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--text-lo);
+}
+.ext-card.best .tag  { color: var(--accent); }
+.ext-card.worst .tag { color: var(--neg); }
+.ext-card .val {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 32px; font-weight: 600; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.ext-card.best  .val { color: var(--accent); text-shadow: 0 0 22px var(--accent-glow); }
+.ext-card.worst .val { color: var(--neg);    text-shadow: 0 0 22px var(--neg-glow); }
+.ext-card .ttl   { font-size: 12px; color: var(--text-hi); }
+.ext-card .stats {
+  display: flex; gap: 22px;
+  font-size: 11px;
+  color: var(--text-mid);
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.ext-card .stats b {
+  color: var(--text-hi); font-weight: 500;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ---------------- Footer ---------------- */
+.footer {
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-lo);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: flex; gap: 28px; flex-wrap: wrap;
+}
+.footer code {
+  color: var(--text-mid);
+  font-family: "JetBrains Mono", monospace;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---------------- Reveal animation ---------------- */
+.reveal { opacity: 0; transform: translateY(14px); animation: reveal .6s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes reveal { to { opacity: 1; transform: translateY(0); } }
+.r-d1  { animation-delay: 0.05s; }
+.r-d2  { animation-delay: 0.12s; }
+.r-d3  { animation-delay: 0.18s; }
+.r-d4  { animation-delay: 0.24s; }
+.r-d5  { animation-delay: 0.30s; }
+.r-d6  { animation-delay: 0.36s; }
+.r-d7  { animation-delay: 0.44s; }
+.r-d8  { animation-delay: 0.52s; }
+.r-d9  { animation-delay: 0.60s; }
+.r-d10 { animation-delay: 0.68s; }
+.r-d11 { animation-delay: 0.78s; }
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 1280px) {
+  .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+  .row.r-2-1, .row.r-1-1 { grid-template-columns: 1fr; }
+  .extremes { grid-template-columns: 1fr; }
+  .masthead { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .page { padding: 18px 16px 36px; }
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .status-row { flex-wrap: wrap; gap: 10px; }
+  .masthead h1 { font-size: 22px; }
+}
+
+/* loading state */
+.loading {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-base);
+  z-index: 99;
+  transition: opacity .4s ease;
+  font-family: "Chakra Petch", sans-serif;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  font-size: 14px;
+}
+.loading.hide { opacity: 0; pointer-events: none; }
+.loading::after {
+  content: ""; display: inline-block;
+  width: 0; overflow: hidden;
+  vertical-align: bottom;
+  animation: dots 1.4s steps(4, end) infinite;
+}
+@keyframes dots {
+  0% { width: 0; } 25% { width: 6px; } 50% { width: 12px; }
+  75% { width: 18px; } 100% { width: 24px; }
+}
+.loading-text::before { content: "INITIALIZING"; }
+.loading-text::after { content: "_"; animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading"><span class="loading-text"></span></div>
+
+<div class="page">
+
+  <!-- ============== TOP BAR ============== -->
+  <div class="topbar reveal r-d1">
+    <div class="brand">
+      <div class="brand-mark">5M</div>
+      <div>
+        <div class="brand-text">BTC<span class="sep">·</span>5MIN<span class="sep">·</span>PnL</div>
+        <div class="brand-sub">POLYMARKET LIVE TRADING TERMINAL</div>
+      </div>
+    </div>
+    <div class="status-row">
+      <span class="status-pill live"><span class="live-dot"></span>LIVE FEED</span>
+      <span class="status-pill">REFRESH&nbsp;&nbsp;<span id="countdown">60</span>S</span>
+      <span class="status-pill">UPDATED&nbsp;&nbsp;<code id="last-updated">—</code></span>
+    </div>
+  </div>
+
+  <!-- ============== MASTHEAD ============== -->
+  <div class="masthead reveal r-d2">
+    <div>
+      <h1>Realized <em>PnL</em> on Polymarket BTC 5-minute Markets</h1>
+      <div class="desc">
+        Per-market BUY + REDEEM rolled into a single PnL per 5-min market, then resampled to 5-min cumulative.
+        Maker rebate stream extracted separately as a daily series. Auto-refreshing static feed served from GitHub Pages.
+      </div>
+    </div>
+    <div class="wallet-pill">
+      <span class="label">Wallet</span>
+      <span class="addr" id="wallet">—</span>
+    </div>
+  </div>
+
+  <!-- ============== KPI STRIP ============== -->
+  <div class="kpi-strip">
+    <div class="kpi reveal r-d3" id="kpi-pnl">
+      <div class="label">CUM PnL</div>
+      <div class="value" data-value="0" data-prefix="$" data-decimals="2" data-signed="1">$0.00</div>
+      <div class="sub">USDC realized</div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+    <div class="kpi reveal r-d4">
+      <div class="label">Markets</div>
+      <div class="value" data-value="0" data-decimals="0">0</div>
+      <div class="sub">5-min markets traded</div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+    <div class="kpi reveal r-d5">
+      <div class="label">Win Rate</div>
+      <div class="value" data-value="0" data-suffix="%" data-decimals="1">0%</div>
+      <div class="sub" id="win-sub">— / —</div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+    <div class="kpi reveal r-d6" id="kpi-rot">
+      <div class="label">ROT</div>
+      <div class="value" data-value="0" data-decimals="4" data-signed="1">0.0000</div>
+      <div class="sub">PnL per Σ buy_size</div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+    <div class="kpi reveal r-d7 gold">
+      <div class="label">Rebates</div>
+      <div class="value" data-value="0" data-prefix="$" data-decimals="4">$0.0000</div>
+      <div class="sub">Maker rebate accrued</div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+    <div class="kpi reveal r-d8">
+      <div class="label">Days Live</div>
+      <div class="value" data-value="0" data-decimals="0">0</div>
+      <div class="sub">Calendar UTC days</div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
+  <!-- ============== CUMULATIVE PnL ============== -->
+  <div class="row r-1">
+    <div class="panel reveal r-d9">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">01</span>CUMULATIVE PnL · 5-MIN RESAMPLE</div>
+        <div class="panel-meta">USDC · UTC · STEP-AFTER</div>
+      </div>
+      <div class="chart tall" id="chart-cum"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
+  <!-- ============== REBATES + RECENT ============== -->
+  <div class="row r-2-1">
+    <div class="panel reveal r-d10">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">02</span>DAILY MAKER REBATES</div>
+        <div class="panel-meta">USDC · UTC DAY</div>
+      </div>
+      <div class="chart" id="chart-rebates"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+
+    <div class="panel reveal r-d10">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">03</span>RECENT MARKETS</div>
+        <div class="panel-meta">LAST 24 · DESC</div>
+      </div>
+      <div class="scroll-box">
+      <table class="dt" id="recent-table">
+        <thead><tr>
+          <th>END</th><th>MARKET</th><th>SIDE</th>
+          <th class="right">WAP</th><th class="right">SIZE</th><th class="right">PnL</th>
+        </tr></thead>
+        <tbody id="recent-body"></tbody>
+      </table>
+      </div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
+  <!-- ============== REGIME ============== -->
+  <div class="row r-1-1">
+    <div class="panel reveal r-d11">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">04</span>REGIME · AVG PnL / MARKET</div>
+        <div class="panel-meta">BIN BY WEIGHTED ENTRY PRICE · 0.1 STEP</div>
+      </div>
+      <div class="chart" id="chart-regime-avg"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+
+    <div class="panel reveal r-d11">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">05</span>REGIME · ENTRY COUNT</div>
+        <div class="panel-meta">N MARKETS PER BIN</div>
+      </div>
+      <div class="chart" id="chart-regime-cnt"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
+  <!-- ============== EXTREMES ============== -->
+  <div class="extremes reveal r-d11">
+    <div class="ext-card best">
+      <div class="tag">▲ BEST MARKET</div>
+      <div class="val" id="best-val">—</div>
+      <div class="ttl" id="best-title">—</div>
+      <div class="stats" id="best-stats"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+    <div class="ext-card worst">
+      <div class="tag">▼ WORST MARKET</div>
+      <div class="val" id="worst-val">—</div>
+      <div class="ttl" id="worst-title">—</div>
+      <div class="stats" id="worst-stats"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
+  <div class="footer reveal r-d11">
+    <span>SOURCE · <code>data-api.polymarket.com/activity</code></span>
+    <span>RENDERER · <code>ECharts 5.5</code></span>
+    <span>HOST · <code>GitHub Pages</code></span>
+    <span>RECORDS · <code id="record-count">—</code></span>
+  </div>
+
+</div>
+
+<script>
+// ============== Theme constants — keep in lockstep with CSS vars =============
+const C = {
+  bg:       "#06090d",
+  panel:    "#0c1218",
+  border:   "#1c2630",
+  textHi:   "#e7eef5",
+  textMid:  "#8a9bad",
+  textLo:   "#4a5868",
+  accent:   "#5eead4",
+  neg:      "#fb7185",
+  gold:     "#f5b942",
+  blue:     "#60a5fa",
+  violet:   "#a78bfa",
+};
+const REFRESH_MS = 60_000;
+const DATA_URL = "./data.json";
+
+// ============== Helpers ============================================
+const fmt = (v, d = 2, signed = false) => {
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  const s = Math.abs(v).toLocaleString("en-US", {
+    minimumFractionDigits: d, maximumFractionDigits: d,
+  });
+  if (!signed) return (v < 0 ? "-" : "") + s;
+  return v >= 0 ? "+" + s : "-" + s;
+};
+// $-prefix variant: keeps sign outside the dollar sign — "+$112.14", "-$9.25"
+const fmtUsd = (v, d = 2, signed = false) => {
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  const body = Math.abs(v).toLocaleString("en-US", {
+    minimumFractionDigits: d, maximumFractionDigits: d,
+  });
+  let sign = "";
+  if (signed) sign = v >= 0 ? "+" : "-";
+  else if (v < 0) sign = "-";
+  return sign + "$" + body;
+};
+const fmtUtc = (epochMs, opts) => {
+  const d = new Date(epochMs);
+  const pad = n => String(n).padStart(2, "0");
+  return `${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+};
+const shortAddr = (a) => a ? a.slice(0,6) + "…" + a.slice(-4) : "—";
+
+// ============== Animated KPI count-up ==============================
+function animateValue(el, target) {
+  const decimals = parseInt(el.dataset.decimals || "0", 10);
+  const prefix   = el.dataset.prefix  || "";
+  const suffix   = el.dataset.suffix  || "";
+  const signed   = el.dataset.signed === "1";
+  const start = parseFloat(el.dataset.value || "0");
+  const dur = 900;
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const v = start + (target - start) * eased;
+    const body = Math.abs(v).toLocaleString("en-US", {
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    });
+    let sign = "";
+    if (signed) sign = v >= 0 ? "+" : "-";
+    else if (v < 0) sign = "-";
+    el.textContent = sign + prefix + body + suffix;
+    if (p < 1) requestAnimationFrame(step);
+    else el.dataset.value = String(target);
+  }
+  requestAnimationFrame(step);
+}
+
+// ============== Echarts theme bits =================================
+const axisCommon = {
+  axisLine:   { lineStyle: { color: C.border } },
+  axisTick:   { show: false },
+  axisLabel:  { color: C.textMid, fontFamily: "JetBrains Mono", fontSize: 10 },
+  splitLine:  { lineStyle: { color: C.border, type: "dashed", opacity: 0.5 } },
+};
+const tooltipBase = {
+  backgroundColor: "rgba(12, 18, 24, 0.95)",
+  borderColor: C.border,
+  borderWidth: 1,
+  textStyle: { color: C.textHi, fontFamily: "JetBrains Mono", fontSize: 11 },
+  extraCssText: "box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(8px);",
+};
+
+// ============== Charts =============================================
+let chartCum, chartReb, chartRgAvg, chartRgCnt;
+
+function initCharts() {
+  chartCum   = echarts.init(document.getElementById("chart-cum"),   null, { renderer: "canvas" });
+  chartReb   = echarts.init(document.getElementById("chart-rebates"), null, { renderer: "canvas" });
+  chartRgAvg = echarts.init(document.getElementById("chart-regime-avg"), null, { renderer: "canvas" });
+  chartRgCnt = echarts.init(document.getElementById("chart-regime-cnt"), null, { renderer: "canvas" });
+  window.addEventListener("resize", () => {
+    [chartCum, chartReb, chartRgAvg, chartRgCnt].forEach(c => c && c.resize());
+  });
+}
+
+function renderCumulative(series) {
+  const data = series.map(p => [p.t, p.v]);
+  const last = data.length ? data[data.length-1][1] : 0;
+  const isPos = last >= 0;
+  const lineColor = isPos ? C.accent : C.neg;
+  const opt = {
+    backgroundColor: "transparent",
+    grid: { left: 56, right: 26, top: 22, bottom: 32, containLabel: false },
+    tooltip: {
+      ...tooltipBase, trigger: "axis",
+      axisPointer: { type: "cross", lineStyle: { color: C.border }, crossStyle: { color: C.border } },
+      formatter: (ps) => {
+        const p = ps[0];
+        const v = p.value[1];
+        const cls = v >= 0 ? "color:" + C.accent : "color:" + C.neg;
+        return `<div style="font-size:9.5px;letter-spacing:0.12em;color:${C.textLo};margin-bottom:4px">${fmtUtc(p.value[0])} UTC</div>
+          <div style="font-size:14px;${cls};font-weight:600">${fmtUsd(v, 2, true)}</div>`;
+      },
+    },
+    xAxis: {
+      type: "time",
+      ...axisCommon,
+      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => fmtUtc(v) },
+    },
+    yAxis: {
+      type: "value",
+      ...axisCommon,
+      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(0) },
+    },
+    series: [{
+      type: "line",
+      step: "end",
+      data,
+      smooth: false,
+      symbol: "none",
+      lineStyle: { color: lineColor, width: 1.8, shadowColor: lineColor, shadowBlur: 12 },
+      itemStyle: { color: lineColor },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: isPos ? "rgba(94, 234, 212, 0.32)" : "rgba(251, 113, 133, 0.32)" },
+          { offset: 1, color: "rgba(94, 234, 212, 0)" },
+        ]),
+      },
+      markLine: {
+        symbol: "none",
+        lineStyle: { color: C.textLo, type: "dashed", width: 1, opacity: 0.4 },
+        data: [{ yAxis: 0 }],
+      },
+      animationDuration: 1400,
+      animationEasing: "cubicOut",
+    }],
+  };
+  chartCum.setOption(opt);
+}
+
+function renderRebates(daily) {
+  const cats = daily.map(d => d.date.slice(5));
+  const vals = daily.map(d => d.usdc);
+  const opt = {
+    backgroundColor: "transparent",
+    grid: { left: 50, right: 22, top: 22, bottom: 30, containLabel: false },
+    tooltip: {
+      ...tooltipBase, trigger: "axis",
+      formatter: (ps) => {
+        const p = ps[0];
+        return `<div style="font-size:9.5px;letter-spacing:0.12em;color:${C.textLo};margin-bottom:4px">${daily[p.dataIndex].date}</div>
+          <div style="font-size:14px;color:${C.gold};font-weight:600">$${fmt(p.value, 4)}</div>
+          <div style="font-size:10px;color:${C.textMid};margin-top:2px">maker rebate</div>`;
+      },
+    },
+    xAxis: { type: "category", data: cats, ...axisCommon, axisLabel: { ...axisCommon.axisLabel, fontSize: 10 } },
+    yAxis: { type: "value", ...axisCommon, axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(2) } },
+    series: [{
+      type: "bar",
+      data: vals,
+      barWidth: "55%",
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: "rgba(245, 185, 66, 0.95)" },
+          { offset: 1, color: "rgba(245, 185, 66, 0.25)" },
+        ]),
+        borderColor: C.gold, borderWidth: 0,
+        shadowColor: "rgba(245, 185, 66, 0.4)", shadowBlur: 14, shadowOffsetY: 0,
+      },
+      emphasis: { itemStyle: { color: C.gold, shadowBlur: 22 } },
+      label: {
+        show: true, position: "top",
+        formatter: (p) => p.value > 0 ? "$" + p.value.toFixed(3) : "",
+        color: C.gold, fontFamily: "JetBrains Mono", fontSize: 10, fontWeight: 600,
+      },
+      animationDuration: 900,
+      animationDelay: (i) => i * 80,
+      animationEasing: "elasticOut",
+    }],
+  };
+  chartReb.setOption(opt);
+}
+
+function renderRegimeAvg(regime) {
+  const cats = regime.map(r => r.bin);
+  const vals = regime.map(r => r.n_markets > 0 ? r.avg_pnl : null);
+  const opt = {
+    backgroundColor: "transparent",
+    grid: { left: 56, right: 22, top: 22, bottom: 38, containLabel: false },
+    tooltip: {
+      ...tooltipBase, trigger: "axis",
+      formatter: (ps) => {
+        const p = ps[0]; const r = regime[p.dataIndex];
+        if (!r.n_markets) return `<div style="color:${C.textLo}">${r.bin}: no entries</div>`;
+        const cls = r.avg_pnl >= 0 ? C.accent : C.neg;
+        return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">ENTRY ${r.bin}</div>
+          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtUsd(r.avg_pnl, 3, true)}</div>
+          <div style="font-size:10px;color:${C.textMid}">total ${fmtUsd(r.total_pnl, 2, true)} · ${r.n_markets} markets</div>`;
+      },
+    },
+    xAxis: { type: "category", data: cats, ...axisCommon, axisLabel: { ...axisCommon.axisLabel, fontSize: 9, rotate: 0 } },
+    yAxis: { type: "value", ...axisCommon, axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(1) } },
+    series: [{
+      type: "bar",
+      data: vals.map(v => ({
+        value: v,
+        itemStyle: v == null ? { color: C.border } :
+          (v >= 0
+            ? { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                {offset:0, color:"rgba(94,234,212,0.95)"}, {offset:1, color:"rgba(94,234,212,0.2)"}]),
+                shadowColor: C.accent, shadowBlur: 12 }
+            : { color: new echarts.graphic.LinearGradient(0,1,0,0,[
+                {offset:0, color:"rgba(251,113,133,0.95)"}, {offset:1, color:"rgba(251,113,133,0.2)"}]),
+                shadowColor: C.neg, shadowBlur: 12 }),
+      })),
+      barWidth: "65%",
+      label: {
+        show: true, position: "top",
+        formatter: (p) => p.value == null ? "" : "$" + p.value.toFixed(2),
+        color: C.textHi, fontFamily: "JetBrains Mono", fontSize: 9.5, fontWeight: 600,
+      },
+      markLine: {
+        symbol: "none",
+        lineStyle: { color: C.textLo, type: "dashed", width: 1, opacity: 0.4 },
+        data: [{ yAxis: 0 }],
+      },
+      animationDuration: 900,
+      animationDelay: (i) => i * 60,
+      animationEasing: "cubicOut",
+    }],
+  };
+  chartRgAvg.setOption(opt);
+}
+
+function renderRegimeCnt(regime) {
+  const cats = regime.map(r => r.bin);
+  const vals = regime.map(r => r.n_markets);
+  const opt = {
+    backgroundColor: "transparent",
+    grid: { left: 50, right: 22, top: 22, bottom: 38, containLabel: false },
+    tooltip: {
+      ...tooltipBase, trigger: "axis",
+      formatter: (ps) => {
+        const p = ps[0]; const r = regime[p.dataIndex];
+        return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">ENTRY ${r.bin}</div>
+          <div style="font-size:13px;color:${C.blue};font-weight:600">${r.n_markets} markets</div>`;
+      },
+    },
+    xAxis: { type: "category", data: cats, ...axisCommon, axisLabel: { ...axisCommon.axisLabel, fontSize: 9 } },
+    yAxis: { type: "value", ...axisCommon, axisLabel: { ...axisCommon.axisLabel, formatter: (v) => v.toFixed(0) } },
+    series: [{
+      type: "bar",
+      data: vals,
+      barWidth: "65%",
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: "rgba(96, 165, 250, 0.85)" },
+          { offset: 1, color: "rgba(96, 165, 250, 0.18)" },
+        ]),
+        shadowColor: C.blue, shadowBlur: 10,
+      },
+      label: {
+        show: true, position: "top",
+        formatter: (p) => p.value > 0 ? p.value : "",
+        color: C.blue, fontFamily: "JetBrains Mono", fontSize: 10, fontWeight: 600,
+      },
+      animationDuration: 900,
+      animationDelay: (i) => i * 60,
+      animationEasing: "cubicOut",
+    }],
+  };
+  chartRgCnt.setOption(opt);
+}
+
+// ============== Tables / extremes ==================================
+function renderRecent(rows) {
+  const body = document.getElementById("recent-body");
+  body.innerHTML = rows.map(r => {
+    const dt = new Date(r.market_end_ts * 1000);
+    const pad = n => String(n).padStart(2, "0");
+    const ts = `${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}`;
+    const wap = r.weighted_entry_price != null ? r.weighted_entry_price.toFixed(3) : "—";
+    const cls = r.pnl > 0 ? "pos" : (r.pnl < 0 ? "neg" : "");
+    const sideCls = (r.outcome || "").toLowerCase() === "up" ? "up" : "down";
+    const titleShort = (r.title || "").replace(/Bitcoin Up or Down - /, "").replace(/Bitcoin /,"BTC ").replace(/ ET/,"ET");
+    return `<tr>
+      <td>${ts}</td>
+      <td class="title">${titleShort}</td>
+      <td><span class="tag ${sideCls}">${(r.outcome || "—").toUpperCase()}</span></td>
+      <td class="right">${wap}</td>
+      <td class="right">${r.total_buy_size.toFixed(2)}</td>
+      <td class="right ${cls}">${fmt(r.pnl, 2, true)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderExtremes(extremes) {
+  const fill = (kind, m) => {
+    if (!m) return;
+    document.getElementById(`${kind}-val`).textContent = fmtUsd(m.pnl, 2, true);
+    document.getElementById(`${kind}-title`).textContent = m.title || "—";
+    const wap = m.weighted_entry_price != null ? m.weighted_entry_price.toFixed(3) : "—";
+    const dt = new Date(m.market_end_ts * 1000);
+    const pad = n => String(n).padStart(2, "0");
+    const ts = `${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())} UTC`;
+    document.getElementById(`${kind}-stats`).innerHTML =
+      `<span>WAP <b>${wap}</b></span><span>SIZE <b>${m.total_buy_size.toFixed(2)}</b></span>` +
+      `<span>OUTCOME <b>${m.outcome || "—"}</b></span><span>END <b>${ts}</b></span>`;
+  };
+  fill("best", extremes.best);
+  fill("worst", extremes.worst);
+}
+
+// ============== KPI fill ===========================================
+function renderKpis(k) {
+  const tiles = document.querySelectorAll(".kpi .value");
+  // order matches DOM
+  const targets = [
+    k.total_pnl,
+    k.n_markets,
+    k.win_rate_pct,
+    k.rot,
+    k.total_rebates,
+    k.running_days,
+  ];
+  tiles.forEach((el, i) => animateValue(el, targets[i]));
+
+  // sign coloring on PnL + ROT
+  const pnlTile = document.getElementById("kpi-pnl");
+  pnlTile.classList.toggle("pos", k.total_pnl > 0);
+  pnlTile.classList.toggle("neg", k.total_pnl < 0);
+  const rotTile = document.getElementById("kpi-rot");
+  rotTile.classList.toggle("pos", k.rot > 0);
+  rotTile.classList.toggle("neg", k.rot < 0);
+
+  document.getElementById("win-sub").textContent =
+    `${k.n_winners} W / ${k.n_losers} L`;
+}
+
+// ============== Auto refresh =======================================
+let countdownTimer = null;
+function startCountdown() {
+  let n = REFRESH_MS / 1000;
+  document.getElementById("countdown").textContent = n;
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    n -= 1;
+    if (n <= 0) {
+      n = REFRESH_MS / 1000;
+      loadData(false);
+    }
+    document.getElementById("countdown").textContent = n;
+  }, 1000);
+}
+
+async function loadData(initial) {
+  try {
+    const url = `${DATA_URL}?t=${Date.now()}`;
+    const r = await fetch(url, { cache: "no-store" });
+    const d = await r.json();
+
+    document.getElementById("wallet").textContent = shortAddr(d.meta.wallet);
+    document.getElementById("record-count").textContent = `${d.meta.n_btc_records} BTC / ${d.meta.n_total_records} TOTAL`;
+    const upd = new Date(d.meta.generated_at);
+    const pad = n => String(n).padStart(2, "0");
+    document.getElementById("last-updated").textContent =
+      `${pad(upd.getUTCMonth()+1)}-${pad(upd.getUTCDate())} ${pad(upd.getUTCHours())}:${pad(upd.getUTCMinutes())}:${pad(upd.getUTCSeconds())} UTC`;
+
+    renderKpis(d.kpi);
+    renderCumulative(d.cumulative_pnl);
+    renderRebates(d.daily_rebates);
+    renderRegimeAvg(d.regime);
+    renderRegimeCnt(d.regime);
+    renderRecent(d.recent);
+    renderExtremes(d.extremes);
+
+    if (initial) {
+      const l = document.getElementById("loading");
+      l.classList.add("hide");
+      setTimeout(() => l.remove(), 500);
+    }
+  } catch (e) {
+    console.error("data load failed", e);
+    document.getElementById("last-updated").textContent = "FETCH FAILED";
+  }
+}
+
+// ============== Boot ===============================================
+window.addEventListener("DOMContentLoaded", () => {
+  initCharts();
+  loadData(true);
+  startCountdown();
+});
+</script>
+
+</body>
+</html>
