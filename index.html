@@ -425,6 +425,29 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
   font-family: "JetBrains Mono", monospace;
 }
 
+/* ---------------- Region legend (regime time charts) ---------------- */
+.region-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+.region-legend .swatch {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.region-legend .swatch i {
+  display: inline-block;
+  width: 14px; height: 10px;
+  border: 1px solid var(--border-hot);
+}
+.region-legend .swatch i.cn   { background: rgba(96, 165, 250, 0.22);  border-color: rgba(96, 165, 250, 0.55); }
+.region-legend .swatch i.us   { background: rgba(167, 139, 250, 0.22); border-color: rgba(167, 139, 250, 0.55); }
+.region-legend .swatch i.both { background: rgba(139, 92,  246, 0.42); border-color: rgba(139, 92,  246, 0.7);  }
+
 /* ---------------- Footer ---------------- */
 .footer {
   margin-top: 36px;
@@ -457,6 +480,8 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
 .r-d9  { animation-delay: 0.60s; }
 .r-d10 { animation-delay: 0.68s; }
 .r-d11 { animation-delay: 0.78s; }
+.r-d12 { animation-delay: 0.86s; }
+.r-d13 { animation-delay: 0.94s; }
 
 /* ---------------- Responsive ---------------- */
 @media (max-width: 1280px) {
@@ -641,6 +666,38 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
     </div>
   </div>
 
+  <!-- ============== REGIME · TIME-OF-DAY / TIME-OF-WEEK ============== -->
+  <div class="row r-1">
+    <div class="panel reveal r-d12">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">06</span>REGIME · HOUR-OF-DAY</div>
+        <div class="panel-meta">MARKET END · UTC HOUR · AVG PnL</div>
+      </div>
+      <div class="region-legend" style="margin: 4px 0 6px;">
+        <span class="swatch"><i class="cn"></i> CN TRADE 09–21 (UTC+8)</span>
+        <span class="swatch"><i class="us"></i> US TRADE 09–21 ET (DST · UTC-4)</span>
+      </div>
+      <div class="chart" id="chart-regime-hourly"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
+  <div class="row r-1">
+    <div class="panel reveal r-d13">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">07</span>REGIME · HOUR-OF-WEEK</div>
+        <div class="panel-meta">MON 00 → SUN 23 UTC · AVG PnL</div>
+      </div>
+      <div class="region-legend" style="margin: 4px 0 6px;">
+        <span class="swatch"><i class="cn"></i> CN WEEKEND (UTC+8)</span>
+        <span class="swatch"><i class="us"></i> US WEEKEND ET (DST · UTC-4)</span>
+        <span class="swatch"><i class="both"></i> OVERLAP</span>
+      </div>
+      <div class="chart tall" id="chart-regime-weekly"></div>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
   <!-- ============== EXTREMES ============== -->
   <div class="extremes reveal r-d11">
     <div class="ext-card best">
@@ -755,15 +812,17 @@ const tooltipBase = {
 };
 
 // ============== Charts =============================================
-let chartCum, chartReb, chartRgAvg, chartRgCnt;
+let chartCum, chartReb, chartRgAvg, chartRgCnt, chartRgHr, chartRgWk;
 
 function initCharts() {
   chartCum   = echarts.init(document.getElementById("chart-cum"),   null, { renderer: "canvas" });
   chartReb   = echarts.init(document.getElementById("chart-rebates"), null, { renderer: "canvas" });
   chartRgAvg = echarts.init(document.getElementById("chart-regime-avg"), null, { renderer: "canvas" });
   chartRgCnt = echarts.init(document.getElementById("chart-regime-cnt"), null, { renderer: "canvas" });
+  chartRgHr  = echarts.init(document.getElementById("chart-regime-hourly"), null, { renderer: "canvas" });
+  chartRgWk  = echarts.init(document.getElementById("chart-regime-weekly"), null, { renderer: "canvas" });
   window.addEventListener("resize", () => {
-    [chartCum, chartReb, chartRgAvg, chartRgCnt].forEach(c => c && c.resize());
+    [chartCum, chartReb, chartRgAvg, chartRgCnt, chartRgHr, chartRgWk].forEach(c => c && c.resize());
   });
 }
 
@@ -956,6 +1015,200 @@ function renderRegimeCnt(regime) {
   chartRgCnt.setOption(opt);
 }
 
+// ============== Regime · hour-of-day ===============================
+// Background overlays:
+//   China trade hours 09:00–21:00 CN (UTC+8) → UTC buckets [1, 12]
+//   US trade hours    09:00–21:00 ET (UTC-4 DST) → UTC buckets [13, 23] ∪ [0, 0]
+//   No overlap on the hourly chart.
+const CN_BG  = "rgba(96, 165, 250, 0.16)";   // blue
+const CN_BD  = "rgba(96, 165, 250, 0.45)";
+const US_BG  = "rgba(167, 139, 250, 0.16)";  // violet
+const US_BD  = "rgba(167, 139, 250, 0.45)";
+const OL_BG  = "rgba(139, 92, 246, 0.34)";   // deep purple = overlap
+const OL_BD  = "rgba(139, 92, 246, 0.6)";
+
+function makeBarItem(v) {
+  if (v == null) return { color: "rgba(28, 38, 48, 0.6)" };
+  return v >= 0
+    ? {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: "rgba(94,234,212,0.95)" },
+          { offset: 1, color: "rgba(94,234,212,0.20)" },
+        ]),
+        shadowColor: C.accent, shadowBlur: 10,
+      }
+    : {
+        color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+          { offset: 0, color: "rgba(251,113,133,0.95)" },
+          { offset: 1, color: "rgba(251,113,133,0.20)" },
+        ]),
+        shadowColor: C.neg, shadowBlur: 10,
+      };
+}
+
+function renderRegimeHourly(rh) {
+  const cats = rh.map(r => String(r.hour).padStart(2, "0"));
+  const vals = rh.map(r => r.n_markets > 0 ? r.avg_pnl : null);
+
+  const opt = {
+    backgroundColor: "transparent",
+    grid: { left: 56, right: 22, top: 22, bottom: 36, containLabel: false },
+    tooltip: {
+      ...tooltipBase, trigger: "axis",
+      formatter: (ps) => {
+        const p = ps[0]; const r = rh[p.dataIndex];
+        if (!r.n_markets) {
+          return `<div style="font-size:10px;color:${C.textLo}">UTC ${cats[p.dataIndex]}:00 — no entries</div>`;
+        }
+        const cls = r.avg_pnl >= 0 ? C.accent : C.neg;
+        return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">UTC ${cats[p.dataIndex]}:00</div>
+          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtUsd(r.avg_pnl, 3, true)}</div>
+          <div style="font-size:10px;color:${C.textMid}">total ${fmtUsd(r.total_pnl, 2, true)} · ${r.n_markets} markets</div>`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      data: cats,
+      ...axisCommon,
+      axisLabel: { ...axisCommon.axisLabel, fontSize: 10 },
+      name: "UTC",
+      nameLocation: "end",
+      nameTextStyle: { color: C.textLo, fontSize: 9, padding: [0, 0, 0, 6] },
+    },
+    yAxis: {
+      type: "value", ...axisCommon,
+      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(1) },
+    },
+    series: [{
+      type: "bar",
+      data: vals.map(v => ({ value: v, itemStyle: makeBarItem(v) })),
+      barWidth: "62%",
+      label: {
+        show: true, position: "top",
+        formatter: (p) => p.value == null ? "" : "$" + p.value.toFixed(2),
+        color: C.textHi, fontFamily: "JetBrains Mono", fontSize: 9, fontWeight: 600,
+      },
+      markLine: {
+        symbol: "none", silent: true,
+        lineStyle: { color: C.textLo, type: "dashed", width: 1, opacity: 0.4 },
+        data: [{ yAxis: 0 }],
+      },
+      markArea: {
+        silent: true,
+        data: [
+          // China trade: bucket 01..12 inclusive
+          [{ xAxis: "01", itemStyle: { color: CN_BG, borderColor: CN_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "12" }],
+          // US trade part A: buckets 13..23
+          [{ xAxis: "13", itemStyle: { color: US_BG, borderColor: US_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "23" }],
+          // US trade part B: bucket 00 only
+          [{ xAxis: "00", itemStyle: { color: US_BG, borderColor: US_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "00" }],
+        ],
+      },
+      animationDuration: 900,
+      animationDelay: (i) => i * 30,
+      animationEasing: "cubicOut",
+    }],
+  };
+  chartRgHr.setOption(opt, true);
+}
+
+// ============== Regime · hour-of-week (168 buckets) ================
+// Week: Mon 00:00 UTC (idx 0) → Sun 23:00 UTC (idx 167)
+//   China weekend (Sat–Sun CN, UTC+8) → idx [112, 159]
+//   US weekend    (Sat–Sun ET, UTC-4 DST) → idx [124, 167] ∪ [0, 3]
+//   CN-only:  [112, 123]
+//   Overlap:  [124, 159]   (deeper color)
+//   US-only:  [160, 167] ∪ [0, 3]
+function renderRegimeWeekly(rw) {
+  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const cats = rw.map(r => String(r.idx));   // category names = stringified idx
+  const vals = rw.map(r => r.n_markets > 0 ? r.avg_pnl : null);
+
+  const opt = {
+    backgroundColor: "transparent",
+    grid: { left: 56, right: 22, top: 22, bottom: 44, containLabel: false },
+    tooltip: {
+      ...tooltipBase, trigger: "axis",
+      formatter: (ps) => {
+        const p = ps[0]; const r = rw[p.dataIndex];
+        const lbl = `${r.day} ${String(r.hour).padStart(2,"0")}:00 UTC`;
+        if (!r.n_markets) {
+          return `<div style="font-size:10px;color:${C.textLo}">${lbl} — no entries</div>`;
+        }
+        const cls = r.avg_pnl >= 0 ? C.accent : C.neg;
+        return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">${lbl}</div>
+          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtUsd(r.avg_pnl, 3, true)}</div>
+          <div style="font-size:10px;color:${C.textMid}">total ${fmtUsd(r.total_pnl, 2, true)} · ${r.n_markets} markets</div>`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      data: cats,
+      ...axisCommon,
+      axisLabel: {
+        ...axisCommon.axisLabel,
+        interval: (i) => i % 24 === 0,
+        formatter: (v, i) => (i % 24 === 0) ? days[i / 24] : "",
+        fontSize: 10,
+        color: C.textMid,
+        margin: 12,
+      },
+      axisTick: {
+        show: true,
+        alignWithLabel: false,
+        interval: (i) => i % 24 === 0,
+        lineStyle: { color: C.border },
+        length: 5,
+      },
+      splitLine: {
+        show: true,
+        interval: (i) => i % 24 === 23,  // separator after each day
+        lineStyle: { color: C.border, type: "dashed", opacity: 0.5 },
+      },
+    },
+    yAxis: {
+      type: "value", ...axisCommon,
+      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(1) },
+    },
+    series: [{
+      type: "bar",
+      data: vals.map(v => ({ value: v, itemStyle: makeBarItem(v) })),
+      barWidth: "85%",
+      barCategoryGap: "10%",
+      label: { show: false },
+      markLine: {
+        symbol: "none", silent: true,
+        lineStyle: { color: C.textLo, type: "dashed", width: 1, opacity: 0.4 },
+        data: [{ yAxis: 0 }],
+      },
+      markArea: {
+        silent: true,
+        data: [
+          // CN-only weekend: idx 112..123
+          [{ xAxis: "112", itemStyle: { color: CN_BG, borderColor: CN_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "123" }],
+          // Overlap (CN ∩ US): idx 124..159 — deeper color
+          [{ xAxis: "124", itemStyle: { color: OL_BG, borderColor: OL_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "159" }],
+          // US-only weekend tail: idx 160..167
+          [{ xAxis: "160", itemStyle: { color: US_BG, borderColor: US_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "167" }],
+          // US-only weekend wrap: idx 0..3 (Mon early UTC = late Sun ET)
+          [{ xAxis: "0", itemStyle: { color: US_BG, borderColor: US_BD, borderWidth: 1, borderType: "dashed" } },
+           { xAxis: "3" }],
+        ],
+      },
+      animationDuration: 900,
+      animationDelay: (i) => Math.min(i, 80) * 8,
+      animationEasing: "cubicOut",
+    }],
+  };
+  chartRgWk.setOption(opt, true);
+}
+
 // ============== Tables / extremes ==================================
 function renderRecent(rows) {
   const body = document.getElementById("recent-body");
@@ -1055,6 +1308,8 @@ async function loadData(initial) {
     renderRebates(d.daily_rebates);
     renderRegimeAvg(d.regime);
     renderRegimeCnt(d.regime);
+    if (d.regime_hourly) renderRegimeHourly(d.regime_hourly);
+    if (d.regime_weekly) renderRegimeWeekly(d.regime_weekly);
     renderRecent(d.recent);
     renderExtremes(d.extremes);
 

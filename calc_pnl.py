@@ -231,6 +231,59 @@ def regime_table(per_market: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Time-of-day / time-of-week regime tables
+# ---------------------------------------------------------------------------
+
+DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def regime_hourly_table(per_market: pd.DataFrame) -> list[dict]:
+    """Bucket per-market PnL by UTC hour-of-day of market_end_ts. 24 dense buckets."""
+    base = [{"hour": h, "avg_pnl": 0.0, "total_pnl": 0.0, "n_markets": 0}
+            for h in range(24)]
+    if per_market.empty:
+        return base
+
+    df = per_market.copy()
+    df["hour"] = pd.to_datetime(df["market_end_ts"], unit="s", utc=True).dt.hour
+    g = df.groupby("hour")["pnl"].agg(["mean", "sum", "count"])
+    for h, row in g.iterrows():
+        base[int(h)] = {
+            "hour": int(h),
+            "avg_pnl": float(row["mean"]),
+            "total_pnl": float(row["sum"]),
+            "n_markets": int(row["count"]),
+        }
+    return base
+
+
+def regime_weekly_table(per_market: pd.DataFrame) -> list[dict]:
+    """Bucket per-market PnL by hour-of-week (Mon UTC 00:00 = idx 0 ... Sun UTC 23:00 = idx 167)."""
+    base = [{
+        "idx": i,
+        "day": DAYS[i // 24],
+        "hour": i % 24,
+        "avg_pnl": 0.0,
+        "total_pnl": 0.0,
+        "n_markets": 0,
+    } for i in range(168)]
+    if per_market.empty:
+        return base
+
+    dt = pd.to_datetime(per_market["market_end_ts"], unit="s", utc=True)
+    df = per_market.copy()
+    df["idx"] = dt.dt.dayofweek * 24 + dt.dt.hour  # Mon=0, Sun=6
+    g = df.groupby("idx")["pnl"].agg(["mean", "sum", "count"])
+    for i, row in g.iterrows():
+        base[int(i)].update({
+            "avg_pnl": float(row["mean"]),
+            "total_pnl": float(row["sum"]),
+            "n_markets": int(row["count"]),
+        })
+    return base
+
+
+# ---------------------------------------------------------------------------
 # Cumulative time series, resampled to 5-min buckets
 # ---------------------------------------------------------------------------
 
@@ -306,11 +359,15 @@ def main() -> None:
     per_market = pd.DataFrame()
     cumulative = []
     regime = pd.DataFrame()
+    regime_hourly = regime_hourly_table(pd.DataFrame())
+    regime_weekly = regime_weekly_table(pd.DataFrame())
     if trade_rows:
         df = pd.DataFrame(trade_rows).sort_values("timestamp").reset_index(drop=True)
         per_market = aggregate_per_market(df)
         cumulative = build_cumulative_series(per_market)
         regime = regime_table(per_market)
+        regime_hourly = regime_hourly_table(per_market)
+        regime_weekly = regime_weekly_table(per_market)
 
     # ---- Rebates (across ALL markets, not just BTC — wallet-level stream) ----
     daily_rebates = build_daily_rebates(records)
@@ -400,6 +457,8 @@ def main() -> None:
         },
         "cumulative_pnl": cumulative,
         "regime": regime_list,
+        "regime_hourly": regime_hourly,
+        "regime_weekly": regime_weekly,
         "daily_rebates": daily_rebates,
         "extremes": extremes,
         "recent": recent,

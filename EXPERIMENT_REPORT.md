@@ -133,3 +133,131 @@ near-real-time. Specific requirements:
 3. Repo Settings → Actions → General → workflow permissions = read+write.
 4. Trigger workflow once manually to generate the first deploy.
 5. Live URL: `https://<user>.github.io/<repo>/`.
+
+---
+
+# Task 2 — Regime Tests by Time
+
+**Date:** 2026-05-07
+
+## 1. User Request
+
+Add two new "regime test" charts to the existing dashboard:
+
+1. **Hourly regime**: bin per-market PnL by UTC hour-of-day of `market_end_ts`.
+   x-axis = UTC hour (0–23), y-axis = mean PnL.
+   Background-shade China trading hours (9:00–21:00 CN local) and
+   US trading hours (9:00–21:00 ET local) with two distinct colors.
+2. **Weekly regime**: bin by hour-of-week with the week starting Monday
+   00:00 UTC and ending Sunday 23:59 UTC (168 hourly buckets).
+   Background-shade China weekend (Sat–Sun CN) and US weekend (Sat–Sun ET)
+   with two distinct colors; the overlap region should render in a deeper
+   color.
+
+Design must remain consistent with the existing institutional dark HUD aesthetic.
+
+## 2. Confirmed Choices
+
+- **US timezone**: Eastern Time (ET). Current data is May 2026 → DST is in
+  effect → ET = UTC-4. Background overlays use this offset (the
+  overlay-rectangle would shift by 1 hour when DST ends; data binning is
+  unaffected since it lives in UTC).
+- **Bucket key**: `market_end_ts` (consistent with `cumulative_pnl`).
+- **Weekly granularity**: 168 hourly buckets (Mon 00 → Sun 23 UTC).
+- **Layout**: insert as a new row (panels 06 + 07) after the existing
+  04/05 regime row; do not replace existing regime charts.
+
+## 3. Planned Approach
+
+### Background-shade math
+
+China trading hours, CN local 09:00–21:00 (UTC+8, no DST):
+- UTC range: [01:00, 13:00) → buckets `[1, 12]` on hourly chart.
+
+US trading hours, ET local 09:00–21:00 (UTC-4 in DST):
+- UTC range: [13:00, 01:00 next day) → buckets `[13, 23] ∪ [0, 0]`.
+- No overlap with China on hourly chart.
+
+China weekend, Sat 00:00 – Sun 23:59 CN (UTC+8):
+- UTC range: Fri 16:00 → Sun 16:00 → bucket idx `[112, 159]` (48 hr).
+
+US weekend, Sat 00:00 – Sun 23:59 ET (UTC-4 DST):
+- UTC range: Sat 04:00 → Mon 04:00 → bucket idx `[124, 167] ∪ [0, 3]`.
+
+Three regions on weekly chart:
+- China-only: idx `[112, 123]`
+- Overlap (deeper color): idx `[124, 159]`
+- US-only: idx `[160, 167] ∪ [0, 3]`
+
+### Data layer
+
+Add `regime_hourly` and `regime_weekly` arrays to `data.json`:
+```jsonc
+"regime_hourly": [{"hour": 0, "avg_pnl": ..., "n_markets": ..., "total_pnl": ...}, ...],
+"regime_weekly": [{"idx": 0, "day": "Mon", "hour": 0, "avg_pnl": ..., "n_markets": ..., "total_pnl": ...}, ...]
+```
+
+Two new helpers in `calc_pnl.py`:
+- `regime_hourly_table(per_market)` — groupby UTC hour of `market_end_ts`,
+  reindex to dense 24-hour range.
+- `regime_weekly_table(per_market)` — groupby `dayofweek*24 + hour`,
+  reindex to dense 168-bucket range.
+
+### Frontend
+
+Two new ECharts panels using existing `axisCommon`/`tooltipBase` theme:
+- Bars colored mint (positive) / coral (negative), matching panel 04 style.
+- `markArea` rectangles for trading-hour / weekend overlays:
+  - China = blue `rgba(96,165,250, ...)` low-alpha
+  - US = violet `rgba(167,139,250, ...)` low-alpha
+  - Overlap (weekly only) = deep purple `rgba(139,92,246, 0.22)` for clear contrast
+- Sparse axis labels on weekly chart (one label per day at hour 0).
+- Hover tooltip shows bucket label + n_markets + avg PnL + total PnL.
+- Subtitle in `panel-meta` notes the timezone assumption.
+
+## 4. Results & Observations
+
+### Built
+- `calc_pnl.py` gained `regime_hourly_table()` and `regime_weekly_table()`,
+  both densified to 24 / 168 buckets and emitted in `data.json` under new
+  keys `regime_hourly` and `regime_weekly`. Empty buckets are zero-filled
+  with `n_markets = 0` so the UI can render a flat "no entry" gap.
+- `index.html` gained a region-legend pill component and two new full-width
+  panels (06 hour-of-day, 07 hour-of-week) inserted after the original
+  04/05 regime row, preserving the original layout flow.
+- `markArea` overlays:
+  - Panel 06: blue [01,12] for China trade, violet [13,23] and [00,00]
+    for US trade ET DST. No overlap exists on this chart.
+  - Panel 07: blue [112,123] for CN-only, deep purple [124,159] for the
+    overlap zone, violet [160,167] and [0,3] for US-only tail/wrap.
+- Hourly bars share the same `makeBarItem` factory (mint gradient for
+  positive, coral for negative, dim gray for zero-entry), keeping panel
+  06/07 visually consistent with panel 04.
+- Weekly chart axisLabel collapses to one tick per day (`Mon`/`Tue`/...)
+  with dashed splitLines at every 24-hour boundary, so the 168-bucket
+  density stays legible.
+- Reveal animations extended with `.r-d12` / `.r-d13` delays so the new
+  rows fade in after the existing extremes block.
+
+### Verified
+- `python calc_pnl.py` ran clean against the live cache, producing
+  `regime_hourly` (length 24) and `regime_weekly` (length 168) with
+  expected schema. Sample buckets: hour 0 has 17 markets avg +$0.50,
+  hour 1 has 15 markets avg +$1.18, hour 2 has 16 markets avg +$1.57.
+- Wallet now totals `+$35.16 USDC, 325 markets, 74.2% win, $4.03 rebates`
+  — incremental fetch added 273 records since the prior run.
+- Local HTTP server screenshot was blocked by sandbox policy; relied on
+  static structural review (script-tag balance, function-def counts,
+  ID resolution between div + init) plus careful category-name math
+  for `markArea` boundaries.
+
+### Known caveats
+- `markArea` background offsets assume US ET DST (UTC-4). When DST ends
+  on 2026-11-01, the US trading-hour and US-weekend rectangles will be
+  off by 1 UTC hour visually until they're switched to UTC-5. The data
+  binning itself stays correct (it's all UTC). A future enhancement
+  could compute the offset per-row in Python and emit two background
+  arrays for the frontend to switch between, but YAGNI for now.
+- With only ~2 weeks of cached data the weekly chart has many empty
+  buckets — the design accommodates this (no-entry buckets render as
+  gaps). Density will fill in as the wallet trades through more weeks.
