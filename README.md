@@ -14,7 +14,42 @@ the page silently re-fetches `data.json` every 60 seconds in the browser.
   No build step.
 - **Hosting:** GitHub Pages serves the repo root.
 - **Refresh:** `.github/workflows/refresh.yml` cron-schedules the data pull
-  and commits the result back to `main`.
+  and commits the result back to `main`. Also fires on pushes that touch
+  `calc_pnl.py`, `index.html`, `requirements.txt`, or the workflow itself
+  so frontend / pipeline changes get a data refresh on the spot.
+
+## Dashboard panels
+
+KPI strip (6 tiles): cum PnL · markets · win-rate · ROT · rebates · days-live.
+
+| # | Panel | What it shows |
+|---|---|---|
+| 01 | Cumulative PnL | 5-min step-after line chart, mint/coral by sign, gradient area fill |
+| 02 | Daily Maker Rebates | Amber bar chart per UTC day, derived from MAKER_REBATE rows |
+| 03 | Recent Markets | Last 24 markets with side / WAP / size / PnL |
+| 04 | Regime · Avg PnL | Avg PnL bucketed by 0.1-step weighted entry price |
+| 05 | Regime · Entry Count | N markets per entry-price bucket |
+| 06 | Regime · Hour-of-Day | Avg PnL by UTC hour (0–23) of `market_end_ts`. Background overlays mark CN trade hours (UTC+8 09–21, blue) and US trade hours (ET DST 09–21, violet). |
+| 07 | Regime · Hour-of-Week | Avg PnL by hour-of-week (Mon UTC 00 → Sun 23, 168 buckets). Overlays distinguish CN-only weekend, US-only weekend, and the deep-purple overlap zone. |
+| —  | Extremes | Best / worst single-market cards |
+
+## `data.json` schema
+
+```jsonc
+{
+  "meta":           { "generated_at", "wallet", "window_start_ts", "window_end_ts", ... },
+  "kpi":            { "total_pnl", "n_markets", "n_winners", "n_losers", "win_rate_pct",
+                      "rot", "total_rebates", "running_days", ... },
+  "cumulative_pnl": [{ "t": <epoch_ms>, "v": <usdc> }, ...],          // 5-min resample
+  "regime":         [{ "bin", "avg_pnl", "total_pnl", "n_markets" }], // entry-price buckets
+  "regime_hourly":  [{ "hour": 0..23, "avg_pnl", "total_pnl", "n_markets" }],
+  "regime_weekly":  [{ "idx": 0..167, "day": "Mon..Sun", "hour": 0..23,
+                       "avg_pnl", "total_pnl", "n_markets" }],
+  "daily_rebates":  [{ "date": "YYYY-MM-DD", "usdc" }, ...],
+  "extremes":       { "best": <market>, "worst": <market> },
+  "recent":         [<last 24 markets>]
+}
+```
 
 ## Deploy in 5 minutes
 

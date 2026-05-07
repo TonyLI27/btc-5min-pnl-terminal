@@ -261,3 +261,19 @@ Two new ECharts panels using existing `axisCommon`/`tooltipBase` theme:
 - With only ~2 weeks of cached data the weekly chart has many empty
   buckets — the design accommodates this (no-entry buckets render as
   gaps). Density will fill in as the wallet trades through more weeks.
+
+### Deployment (2026-05-07)
+
+- Workflow `.github/workflows/refresh.yml` extended to also fire on
+  pushes touching `index.html` or `requirements.txt` (in addition to
+  `calc_pnl.py` and the workflow file). Frontend-only updates can now
+  trigger a fresh data run alongside the 10-min cron.
+- Local feature commit `f80169d` had to rebase onto 18 intervening
+  `github-actions[bot]` data-refresh commits. Rebase strategy: keep
+  local versions of `data.json` + `activity_cache.json` (they carry the
+  new schema fields); the next cron tick regenerates with the fresh
+  cache anyway. Rebased commit `a6907e1` pushed to `origin/main`.
+- Push triggered the `refresh-pnl` workflow (path match on
+  `calc_pnl.py` + `index.html`), so the bot regenerates `data.json`
+  with the new schema immediately. Pages auto-redeploys the new
+  `index.html` within ~1 min of push.
