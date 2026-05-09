@@ -544,7 +544,7 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
     </div>
     <div class="status-row">
       <span class="status-pill live"><span class="live-dot"></span>LIVE FEED</span>
-      <span class="status-pill">REFRESH&nbsp;&nbsp;<span id="countdown">60</span>S</span>
+      <span class="status-pill">REFRESH&nbsp;&nbsp;<span id="countdown">30</span>S</span>
       <span class="status-pill">UPDATED&nbsp;&nbsp;<code id="last-updated">—</code></span>
     </div>
   </div>
@@ -716,6 +716,28 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
     </div>
   </div>
 
+  <!-- ============== WEEKLY PnL · HKT (FRI → THU) ============== -->
+  <div class="row r-1">
+    <div class="panel reveal r-d12">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">08</span>WEEKLY PnL · HKT (FRI → THU)</div>
+        <div class="panel-meta">UTC+8 · WEEK ANCHORED ON THURSDAY · NEWEST FIRST</div>
+      </div>
+      <table class="dt" id="weekly-table">
+        <thead><tr>
+          <th>WEEK (HKT)</th>
+          <th class="right">MARKETS</th>
+          <th class="right">W / L</th>
+          <th class="right">WIN %</th>
+          <th class="right">TOTAL PnL</th>
+          <th class="right">REBATES</th>
+        </tr></thead>
+        <tbody id="weekly-body"></tbody>
+      </table>
+      <div class="br1"></div><div class="br2"></div>
+    </div>
+  </div>
+
   <div class="footer reveal r-d11">
     <span>SOURCE · <code>data-api.polymarket.com/activity</code></span>
     <span>RENDERER · <code>ECharts 5.5</code></span>
@@ -740,7 +762,7 @@ const C = {
   blue:     "#60a5fa",
   violet:   "#a78bfa",
 };
-const REFRESH_MS = 60_000;
+const REFRESH_MS = 30_000;
 const DATA_URL = "./data.json";
 
 // ============== Helpers ============================================
@@ -1231,6 +1253,27 @@ function renderRecent(rows) {
   }).join("");
 }
 
+function renderWeekly(rows) {
+  const body = document.getElementById("weekly-body");
+  if (!rows || !rows.length) {
+    body.innerHTML = `<tr><td colspan="6" style="color:${C.textLo};text-align:center;padding:14px;">no weekly data yet</td></tr>`;
+    return;
+  }
+  const sorted = [...rows].sort((a, b) => b.week_start.localeCompare(a.week_start));
+  body.innerHTML = sorted.map(w => {
+    const pnlCls = w.total_pnl > 0 ? "pos" : (w.total_pnl < 0 ? "neg" : "");
+    const winRate = w.n_markets > 0 ? w.win_rate_pct.toFixed(1) + "%" : "—";
+    return `<tr>
+      <td class="title">${w.week_start} → ${w.week_end}</td>
+      <td class="right">${w.n_markets}</td>
+      <td class="right">${w.n_winners} / ${w.n_losers}</td>
+      <td class="right">${winRate}</td>
+      <td class="right ${pnlCls}">${fmt(w.total_pnl, 2, true)}</td>
+      <td class="right gold">${fmt(w.total_rebates, 4)}</td>
+    </tr>`;
+  }).join("");
+}
+
 function renderExtremes(extremes) {
   const fill = (kind, m) => {
     if (!m) return;
@@ -1312,6 +1355,7 @@ async function loadData(initial) {
     if (d.regime_weekly) renderRegimeWeekly(d.regime_weekly);
     renderRecent(d.recent);
     renderExtremes(d.extremes);
+    if (d.weekly_pnl_hkt) renderWeekly(d.weekly_pnl_hkt);
 
     if (initial) {
       const l = document.getElementById("loading");

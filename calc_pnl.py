@@ -284,6 +284,74 @@ def regime_weekly_table(per_market: pd.DataFrame) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Weekly PnL aggregation, anchored on Hong Kong Thursday close
+# ---------------------------------------------------------------------------
+# Week boundary: starts Friday 00:00 HKT (UTC+8), ends following Thursday 23:59 HKT.
+# Thursday is the "anchor"/closing day — the week of YYYY-MM-DD (Thu) covers the
+# preceding Fri through that Thu. Used by the weekly summary table at page bottom.
+
+HKT = timezone(timedelta(hours=8))
+
+
+def hkt_week_bounds(epoch_s: int) -> tuple:
+    """Return (start_date, end_date) of the HKT week containing this UTC timestamp.
+
+    start_date is a Friday, end_date is the following Thursday (both date-only).
+    """
+    hkt = datetime.fromtimestamp(epoch_s, tz=HKT)
+    days_since_fri = (hkt.weekday() - 4) % 7  # Mon=0..Sun=6, Fri=4
+    start = (hkt - timedelta(days=days_since_fri)).date()
+    end = start + timedelta(days=6)
+    return start, end
+
+
+def build_weekly_pnl_hkt(per_market: pd.DataFrame, records: list[dict]) -> list[dict]:
+    """Aggregate per-market PnL and wallet-wide rebates into HKT Fri→Thu weeks."""
+    weeks: dict = {}
+
+    def bucket_for(ts: int):
+        s, e = hkt_week_bounds(ts)
+        if s not in weeks:
+            weeks[s] = {"start": s, "end": e,
+                        "pnl": 0.0, "n": 0, "n_w": 0, "n_l": 0,
+                        "rebates": 0.0}
+        return weeks[s]
+
+    for _, r in per_market.iterrows():
+        b = bucket_for(int(r["market_end_ts"]))
+        v = float(r["pnl"])
+        b["pnl"] += v
+        b["n"] += 1
+        if v > 0:
+            b["n_w"] += 1
+        elif v < 0:
+            b["n_l"] += 1
+
+    for rec in records:
+        if (rec.get("type") or "").upper() not in REBATE_TYPES:
+            continue
+        amt = float(rec.get("usdcSize") or 0.0) or float(rec.get("size") or 0.0)
+        if amt == 0.0:
+            continue
+        b = bucket_for(int(rec["timestamp"]))
+        b["rebates"] += amt
+
+    out = []
+    for b in sorted(weeks.values(), key=lambda x: x["start"]):
+        out.append({
+            "week_start": b["start"].isoformat(),  # Friday HKT
+            "week_end":   b["end"].isoformat(),    # Thursday HKT
+            "n_markets":  b["n"],
+            "n_winners":  b["n_w"],
+            "n_losers":   b["n_l"],
+            "win_rate_pct": (b["n_w"] / b["n"] * 100.0) if b["n"] else 0.0,
+            "total_pnl":   round(b["pnl"], 6),
+            "total_rebates": round(b["rebates"], 6),
+        })
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Cumulative time series, resampled to 5-min buckets
 # ---------------------------------------------------------------------------
 
@@ -373,6 +441,9 @@ def main() -> None:
     daily_rebates = build_daily_rebates(records)
     total_rebates = sum(d["usdc"] for d in daily_rebates)
 
+    # ---- Weekly summary (HKT, Friday → Thursday) ---------------------------
+    weekly_pnl_hkt = build_weekly_pnl_hkt(per_market, records) if len(per_market) else []
+
     # ---- KPIs ---------------------------------------------------------------
     total_pnl = float(per_market["pnl"].sum()) if len(per_market) else 0.0
     n_markets = int(len(per_market))
@@ -460,6 +531,7 @@ def main() -> None:
         "regime_hourly": regime_hourly,
         "regime_weekly": regime_weekly,
         "daily_rebates": daily_rebates,
+        "weekly_pnl_hkt": weekly_pnl_hkt,
         "extremes": extremes,
         "recent": recent,
     }
