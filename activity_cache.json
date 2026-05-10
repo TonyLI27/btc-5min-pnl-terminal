@@ -42364,5 +42364,28 @@
     "transactionHash": "0xa670f4a1df31b5461d3a1aa9d777f04732ad283ecff7c193e35f989b852158ee",
     "type": "TRADE",
     "usdcSize": 11.151
+  },
+  {
+    "asset": "",
+    "bio": "Testing prediction models. Academic research only. Non-profit. NOT financial advice. Trade at your own risk.",
+    "conditionId": "0x509ca5349e68f27b5bbfc9a19ebe61cae475ae4505f635f747b81d9be3f3d265",
+    "eventSlug": "btc-updown-5m-1778424300",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
+    "name": "Zhang-Jingwei-HK",
+    "outcome": "",
+    "outcomeIndex": 999,
+    "price": 0,
+    "profileImage": "",
+    "profileImageOptimized": "",
+    "proxyWallet": "0x6639985946d3016b83ca5cf1667810dac3587202",
+    "pseudonym": "Doting-Nasal",
+    "side": "",
+    "size": 10,
+    "slug": "btc-updown-5m-1778424300",
+    "timestamp": 1778424849,
+    "title": "Bitcoin Up or Down - May 10, 10:45AM-10:50AM ET",
+    "transactionHash": "0xae8200ad083e3151e406408682649bde595be8d0bee1f8549e05a411b9a182a7",
+    "type": "REDEEM",
+    "usdcSize": 10
   }
 ]
