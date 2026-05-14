@@ -27,6 +27,36 @@
   --blue:        #60a5fa;
   --violet:      #a78bfa;
   --live:        #34d399;
+  --grid-line:   var(--grid-line);
+  --glow-tl:     rgba(94, 234, 212, 0.08);
+  --glow-br:     rgba(167, 139, 250, 0.07);
+  --scanline:    rgba(255,255,255,0.012);
+  --hover-tint:  rgba(94, 234, 212, 0.025);
+}
+/* ----- LIGHT theme: triggered when body has .return-mode ----- */
+body.return-mode {
+  --bg-base:     #eef2f7;
+  --bg-panel:    #ffffff;
+  --bg-panel-2:  #f5f8fb;
+  --border:      #d6dee7;
+  --border-hot:  #aab7c5;
+  --text-hi:     #0e1620;
+  --text-mid:    #4a5868;
+  --text-lo:     #8a98a8;
+  --accent:      #0d9488;
+  --accent-glow: rgba(13, 148, 136, 0.18);
+  --neg:         #e11d48;
+  --neg-glow:    rgba(225, 29, 72, 0.18);
+  --gold:        #b45309;
+  --gold-glow:   rgba(180, 83, 9, 0.18);
+  --blue:        #2563eb;
+  --violet:      #7c3aed;
+  --live:        #16a34a;
+  --grid-line:   rgba(13, 148, 136, 0.04);
+  --glow-tl:     rgba(13, 148, 136, 0.06);
+  --glow-br:     rgba(124, 58, 237, 0.05);
+  --scanline:    rgba(0,0,0,0.015);
+  --hover-tint:  rgba(13, 148, 136, 0.04);
 }
 * { box-sizing: border-box; }
 html, body {
@@ -44,8 +74,8 @@ body::before {
   content: "";
   position: fixed; inset: 0;
   background-image:
-    linear-gradient(rgba(94, 234, 212, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(94, 234, 212, 0.035) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 64px 64px;
   pointer-events: none;
   z-index: 0;
@@ -56,9 +86,9 @@ body::after {
   content: "";
   position: fixed; inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(94, 234, 212, 0.08), transparent 60%),
-    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(167, 139, 250, 0.07), transparent 60%),
-    repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px);
+    radial-gradient(ellipse 80% 60% at 20% 0%, var(--glow-tl), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, var(--glow-br), transparent 60%),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 3px, var(--scanline) 3px, var(--scanline) 4px);
   pointer-events: none;
   z-index: 0;
 }
@@ -348,7 +378,7 @@ table.dt thead th {
   font-weight: 500;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
-  background: rgba(94, 234, 212, 0.02);
+  background: var(--hover-tint);
 }
 table.dt tbody td {
   padding: 7px 10px;
@@ -361,7 +391,7 @@ table.dt tbody td.title {
   font-size: 11px;
 }
 table.dt tbody tr:hover td {
-  background: rgba(94, 234, 212, 0.025);
+  background: var(--hover-tint);
   color: var(--text-hi);
 }
 table.dt td.right { text-align: right; }
@@ -498,6 +528,41 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
   .masthead h1 { font-size: 22px; }
 }
 
+/* ---------------- View toggle (USDC ↔ Return%) ---------------- */
+.view-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-hot);
+  background: var(--bg-panel);
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  user-select: none;
+}
+.view-toggle button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 6px 14px;
+  color: var(--text-mid);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  position: relative;
+  transition: color .2s ease, background .2s ease;
+}
+.view-toggle button + button { border-left: 1px solid var(--border-hot); }
+.view-toggle button:hover { color: var(--text-hi); }
+.view-toggle button.active {
+  background: var(--accent);
+  color: var(--bg-base);
+  font-weight: 700;
+}
+body:not(.return-mode) .view-toggle button.active {
+  text-shadow: 0 0 12px var(--accent-glow);
+}
+
 /* loading state */
 .loading {
   position: fixed; inset: 0;
@@ -543,6 +608,10 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
       </div>
     </div>
     <div class="status-row">
+      <div class="view-toggle" id="view-toggle" role="tablist" aria-label="display mode">
+        <button type="button" data-mode="usdc" class="active" role="tab" aria-selected="true">USDC</button>
+        <button type="button" data-mode="return" role="tab" aria-selected="false">Return %</button>
+      </div>
       <span class="status-pill live"><span class="live-dot"></span>LIVE FEED</span>
       <span class="status-pill">REFRESH&nbsp;&nbsp;<span id="countdown">30</span>S</span>
       <span class="status-pill">UPDATED&nbsp;&nbsp;<code id="last-updated">—</code></span>
@@ -567,39 +636,39 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
   <!-- ============== KPI STRIP ============== -->
   <div class="kpi-strip">
     <div class="kpi reveal r-d3" id="kpi-pnl">
-      <div class="label">CUM PnL</div>
+      <div class="label" data-kpi-label>CUM PnL</div>
       <div class="value" data-value="0" data-prefix="$" data-decimals="2" data-signed="1">$0.00</div>
-      <div class="sub">USDC realized</div>
+      <div class="sub" data-kpi-sub>USDC realized</div>
       <div class="br1"></div><div class="br2"></div>
     </div>
-    <div class="kpi reveal r-d4">
-      <div class="label">Markets</div>
+    <div class="kpi reveal r-d4" id="kpi-markets">
+      <div class="label" data-kpi-label>Markets</div>
       <div class="value" data-value="0" data-decimals="0">0</div>
-      <div class="sub">5-min markets traded</div>
+      <div class="sub" data-kpi-sub>5-min markets traded</div>
       <div class="br1"></div><div class="br2"></div>
     </div>
-    <div class="kpi reveal r-d5">
-      <div class="label">Win Rate</div>
+    <div class="kpi reveal r-d5" id="kpi-win">
+      <div class="label" data-kpi-label>Win Rate</div>
       <div class="value" data-value="0" data-suffix="%" data-decimals="1">0%</div>
-      <div class="sub" id="win-sub">— / —</div>
+      <div class="sub" id="win-sub" data-kpi-sub>— / —</div>
       <div class="br1"></div><div class="br2"></div>
     </div>
     <div class="kpi reveal r-d6" id="kpi-rot">
-      <div class="label">ROT</div>
+      <div class="label" data-kpi-label>ROT</div>
       <div class="value" data-value="0" data-decimals="4" data-signed="1">0.0000</div>
-      <div class="sub">PnL per Σ buy_size</div>
+      <div class="sub" data-kpi-sub>PnL per Σ buy_size</div>
       <div class="br1"></div><div class="br2"></div>
     </div>
-    <div class="kpi reveal r-d7 gold">
-      <div class="label">Rebates</div>
+    <div class="kpi reveal r-d7 gold" id="kpi-rebates">
+      <div class="label" data-kpi-label>Rebates</div>
       <div class="value" data-value="0" data-prefix="$" data-decimals="4">$0.0000</div>
-      <div class="sub">Maker rebate accrued</div>
+      <div class="sub" data-kpi-sub>Maker rebate accrued</div>
       <div class="br1"></div><div class="br2"></div>
     </div>
-    <div class="kpi reveal r-d8">
-      <div class="label">Days Live</div>
+    <div class="kpi reveal r-d8" id="kpi-days">
+      <div class="label" data-kpi-label>Days Live</div>
       <div class="value" data-value="0" data-decimals="0">0</div>
-      <div class="sub">Calendar UTC days</div>
+      <div class="sub" data-kpi-sub>Calendar UTC days</div>
       <div class="br1"></div><div class="br2"></div>
     </div>
   </div>
@@ -636,7 +705,7 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
       <table class="dt" id="recent-table">
         <thead><tr>
           <th>END</th><th>MARKET</th><th>SIDE</th>
-          <th class="right">WAP</th><th class="right">SIZE</th><th class="right">PnL</th>
+          <th class="right">WAP</th><th class="right">SIZE</th><th class="right" id="recent-pnl-th">PnL</th>
         </tr></thead>
         <tbody id="recent-body"></tbody>
       </table>
@@ -729,7 +798,7 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
           <th class="right">MARKETS</th>
           <th class="right">W / L</th>
           <th class="right">WIN %</th>
-          <th class="right">TOTAL PnL</th>
+          <th class="right" id="weekly-pnl-th">TOTAL PnL</th>
           <th class="right">REBATES</th>
         </tr></thead>
         <tbody id="weekly-body"></tbody>
@@ -748,22 +817,42 @@ table.dt .tag.down { color: var(--neg);    border-color: rgba(251, 113, 133, 0.4
 </div>
 
 <script>
-// ============== Theme constants — keep in lockstep with CSS vars =============
+// ============== Theme constants — sourced live from CSS vars =================
+// `C` is mutated on each render so light/dark themes flow through to ECharts.
 const C = {
-  bg:       "#06090d",
-  panel:    "#0c1218",
-  border:   "#1c2630",
-  textHi:   "#e7eef5",
-  textMid:  "#8a9bad",
-  textLo:   "#4a5868",
-  accent:   "#5eead4",
-  neg:      "#fb7185",
-  gold:     "#f5b942",
-  blue:     "#60a5fa",
-  violet:   "#a78bfa",
+  bg: "#06090d", panel: "#0c1218", border: "#1c2630",
+  textHi: "#e7eef5", textMid: "#8a9bad", textLo: "#4a5868",
+  accent: "#5eead4", neg: "#fb7185",
+  gold: "#f5b942", blue: "#60a5fa", violet: "#a78bfa",
 };
+function refreshPalette() {
+  const cs = getComputedStyle(document.body);
+  const read = (n) => cs.getPropertyValue(n).trim();
+  C.bg = read("--bg-base");
+  C.panel = read("--bg-panel");
+  C.border = read("--border");
+  C.textHi = read("--text-hi");
+  C.textMid = read("--text-mid");
+  C.textLo = read("--text-lo");
+  C.accent = read("--accent");
+  C.neg = read("--neg");
+  C.gold = read("--gold");
+  C.blue = read("--blue");
+  C.violet = read("--violet");
+}
+// rgba helper — light mode needs less aggressive glows than dark
+function alpha(hex, a) {
+  // Accept "#rrggbb" or "rgba(...)"; for rgba just return as-is with substitution? simpler: hex only.
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 const REFRESH_MS = 30_000;
 const DATA_URL = "./data.json";
+let currentMode = "usdc";   // 'usdc' | 'return'
+let lastData = null;
 
 // ============== Helpers ============================================
 const fmt = (v, d = 2, signed = false) => {
@@ -848,11 +937,23 @@ function initCharts() {
   });
 }
 
-function renderCumulative(series) {
+function fmtMetric(v, mode, signed = true, decimals = 2) {
+  if (mode === "return") {
+    return fmt(v, decimals, signed) + "%";
+  }
+  return fmtUsd(v, decimals, signed);
+}
+
+function renderCumulative(series, mode) {
   const data = series.map(p => [p.t, p.v]);
   const last = data.length ? data[data.length-1][1] : 0;
   const isPos = last >= 0;
   const lineColor = isPos ? C.accent : C.neg;
+  const fillAlpha = mode === "return" ? 0.18 : 0.32;  // calmer fill on light bg
+  const unit = mode === "return" ? "%" : "$";
+  const yFormatter = mode === "return"
+    ? ((v) => v.toFixed(0) + "%")
+    : ((v) => "$" + v.toFixed(0));
   const opt = {
     backgroundColor: "transparent",
     grid: { left: 56, right: 26, top: 22, bottom: 32, containLabel: false },
@@ -864,7 +965,7 @@ function renderCumulative(series) {
         const v = p.value[1];
         const cls = v >= 0 ? "color:" + C.accent : "color:" + C.neg;
         return `<div style="font-size:9.5px;letter-spacing:0.12em;color:${C.textLo};margin-bottom:4px">${fmtUtc(p.value[0])} UTC</div>
-          <div style="font-size:14px;${cls};font-weight:600">${fmtUsd(v, 2, true)}</div>`;
+          <div style="font-size:14px;${cls};font-weight:600">${fmtMetric(v, mode, true, 2)}</div>`;
       },
     },
     xAxis: {
@@ -875,7 +976,7 @@ function renderCumulative(series) {
     yAxis: {
       type: "value",
       ...axisCommon,
-      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(0) },
+      axisLabel: { ...axisCommon.axisLabel, formatter: yFormatter },
     },
     series: [{
       type: "line",
@@ -883,12 +984,12 @@ function renderCumulative(series) {
       data,
       smooth: false,
       symbol: "none",
-      lineStyle: { color: lineColor, width: 1.8, shadowColor: lineColor, shadowBlur: 12 },
+      lineStyle: { color: lineColor, width: 1.8, shadowColor: lineColor, shadowBlur: mode === "return" ? 6 : 12 },
       itemStyle: { color: lineColor },
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: isPos ? "rgba(94, 234, 212, 0.32)" : "rgba(251, 113, 133, 0.32)" },
-          { offset: 1, color: "rgba(94, 234, 212, 0)" },
+          { offset: 0, color: alpha(isPos ? C.accent : C.neg, fillAlpha) },
+          { offset: 1, color: alpha(isPos ? C.accent : C.neg, 0) },
         ]),
       },
       markLine: {
@@ -900,7 +1001,7 @@ function renderCumulative(series) {
       animationEasing: "cubicOut",
     }],
   };
-  chartCum.setOption(opt);
+  chartCum.setOption(opt, true);
 }
 
 function renderRebates(daily) {
@@ -926,11 +1027,11 @@ function renderRebates(daily) {
       barWidth: "55%",
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: "rgba(245, 185, 66, 0.95)" },
-          { offset: 1, color: "rgba(245, 185, 66, 0.25)" },
+          { offset: 0, color: alpha(C.gold, 0.95) },
+          { offset: 1, color: alpha(C.gold, 0.25) },
         ]),
         borderColor: C.gold, borderWidth: 0,
-        shadowColor: "rgba(245, 185, 66, 0.4)", shadowBlur: 14, shadowOffsetY: 0,
+        shadowColor: alpha(C.gold, 0.4), shadowBlur: 14, shadowOffsetY: 0,
       },
       emphasis: { itemStyle: { color: C.gold, shadowBlur: 22 } },
       label: {
@@ -943,12 +1044,18 @@ function renderRebates(daily) {
       animationEasing: "elasticOut",
     }],
   };
-  chartReb.setOption(opt);
+  chartReb.setOption(opt, true);
 }
 
-function renderRegimeAvg(regime) {
+function renderRegimeAvg(regime, mode) {
   const cats = regime.map(r => r.bin);
   const vals = regime.map(r => r.n_markets > 0 ? r.avg_pnl : null);
+  const yFormatter = mode === "return"
+    ? ((v) => v.toFixed(1) + "%")
+    : ((v) => "$" + v.toFixed(1));
+  const labelFormatter = mode === "return"
+    ? ((p) => p.value == null ? "" : p.value.toFixed(2) + "%")
+    : ((p) => p.value == null ? "" : "$" + p.value.toFixed(2));
   const opt = {
     backgroundColor: "transparent",
     grid: { left: 56, right: 22, top: 22, bottom: 38, containLabel: false },
@@ -959,12 +1066,12 @@ function renderRegimeAvg(regime) {
         if (!r.n_markets) return `<div style="color:${C.textLo}">${r.bin}: no entries</div>`;
         const cls = r.avg_pnl >= 0 ? C.accent : C.neg;
         return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">ENTRY ${r.bin}</div>
-          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtUsd(r.avg_pnl, 3, true)}</div>
-          <div style="font-size:10px;color:${C.textMid}">total ${fmtUsd(r.total_pnl, 2, true)} · ${r.n_markets} markets</div>`;
+          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtMetric(r.avg_pnl, mode, true, 3)}</div>
+          <div style="font-size:10px;color:${C.textMid}">total ${fmtMetric(r.total_pnl, mode, true, 2)} · ${r.n_markets} markets</div>`;
       },
     },
     xAxis: { type: "category", data: cats, ...axisCommon, axisLabel: { ...axisCommon.axisLabel, fontSize: 9, rotate: 0 } },
-    yAxis: { type: "value", ...axisCommon, axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(1) } },
+    yAxis: { type: "value", ...axisCommon, axisLabel: { ...axisCommon.axisLabel, formatter: yFormatter } },
     series: [{
       type: "bar",
       data: vals.map(v => ({
@@ -972,16 +1079,16 @@ function renderRegimeAvg(regime) {
         itemStyle: v == null ? { color: C.border } :
           (v >= 0
             ? { color: new echarts.graphic.LinearGradient(0,0,0,1,[
-                {offset:0, color:"rgba(94,234,212,0.95)"}, {offset:1, color:"rgba(94,234,212,0.2)"}]),
-                shadowColor: C.accent, shadowBlur: 12 }
+                {offset:0, color: alpha(C.accent, 0.95)}, {offset:1, color: alpha(C.accent, 0.2)}]),
+                shadowColor: C.accent, shadowBlur: mode === "return" ? 6 : 12 }
             : { color: new echarts.graphic.LinearGradient(0,1,0,0,[
-                {offset:0, color:"rgba(251,113,133,0.95)"}, {offset:1, color:"rgba(251,113,133,0.2)"}]),
-                shadowColor: C.neg, shadowBlur: 12 }),
+                {offset:0, color: alpha(C.neg, 0.95)}, {offset:1, color: alpha(C.neg, 0.2)}]),
+                shadowColor: C.neg, shadowBlur: mode === "return" ? 6 : 12 }),
       })),
       barWidth: "65%",
       label: {
         show: true, position: "top",
-        formatter: (p) => p.value == null ? "" : "$" + p.value.toFixed(2),
+        formatter: labelFormatter,
         color: C.textHi, fontFamily: "JetBrains Mono", fontSize: 9.5, fontWeight: 600,
       },
       markLine: {
@@ -994,7 +1101,7 @@ function renderRegimeAvg(regime) {
       animationEasing: "cubicOut",
     }],
   };
-  chartRgAvg.setOption(opt);
+  chartRgAvg.setOption(opt, true);
 }
 
 function renderRegimeCnt(regime) {
@@ -1019,8 +1126,8 @@ function renderRegimeCnt(regime) {
       barWidth: "65%",
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: "rgba(96, 165, 250, 0.85)" },
-          { offset: 1, color: "rgba(96, 165, 250, 0.18)" },
+          { offset: 0, color: alpha(C.blue, 0.85) },
+          { offset: 1, color: alpha(C.blue, 0.18) },
         ]),
         shadowColor: C.blue, shadowBlur: 10,
       },
@@ -1034,7 +1141,7 @@ function renderRegimeCnt(regime) {
       animationEasing: "cubicOut",
     }],
   };
-  chartRgCnt.setOption(opt);
+  chartRgCnt.setOption(opt, true);
 }
 
 // ============== Regime · hour-of-day ===============================
@@ -1042,35 +1149,48 @@ function renderRegimeCnt(regime) {
 //   China trade hours 09:00–21:00 CN (UTC+8) → UTC buckets [1, 12]
 //   US trade hours    09:00–21:00 ET (UTC-4 DST) → UTC buckets [13, 23] ∪ [0, 0]
 //   No overlap on the hourly chart.
-const CN_BG  = "rgba(96, 165, 250, 0.16)";   // blue
-const CN_BD  = "rgba(96, 165, 250, 0.45)";
-const US_BG  = "rgba(167, 139, 250, 0.16)";  // violet
-const US_BD  = "rgba(167, 139, 250, 0.45)";
-const OL_BG  = "rgba(139, 92, 246, 0.34)";   // deep purple = overlap
-const OL_BD  = "rgba(139, 92, 246, 0.6)";
+function bgColors() {
+  // Resolve overlay colors from live palette so light mode picks them up too.
+  return {
+    CN_BG: alpha(C.blue, currentMode === "return" ? 0.10 : 0.16),
+    CN_BD: alpha(C.blue, 0.45),
+    US_BG: alpha(C.violet, currentMode === "return" ? 0.10 : 0.16),
+    US_BD: alpha(C.violet, 0.45),
+    OL_BG: alpha(C.violet, currentMode === "return" ? 0.20 : 0.34),
+    OL_BD: alpha(C.violet, 0.6),
+  };
+}
 
 function makeBarItem(v) {
-  if (v == null) return { color: "rgba(28, 38, 48, 0.6)" };
+  if (v == null) return { color: alpha(C.border, 0.6) };
+  const blur = currentMode === "return" ? 5 : 10;
   return v >= 0
     ? {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: "rgba(94,234,212,0.95)" },
-          { offset: 1, color: "rgba(94,234,212,0.20)" },
+          { offset: 0, color: alpha(C.accent, 0.95) },
+          { offset: 1, color: alpha(C.accent, 0.20) },
         ]),
-        shadowColor: C.accent, shadowBlur: 10,
+        shadowColor: C.accent, shadowBlur: blur,
       }
     : {
         color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
-          { offset: 0, color: "rgba(251,113,133,0.95)" },
-          { offset: 1, color: "rgba(251,113,133,0.20)" },
+          { offset: 0, color: alpha(C.neg, 0.95) },
+          { offset: 1, color: alpha(C.neg, 0.20) },
         ]),
-        shadowColor: C.neg, shadowBlur: 10,
+        shadowColor: C.neg, shadowBlur: blur,
       };
 }
 
-function renderRegimeHourly(rh) {
+function renderRegimeHourly(rh, mode) {
   const cats = rh.map(r => String(r.hour).padStart(2, "0"));
   const vals = rh.map(r => r.n_markets > 0 ? r.avg_pnl : null);
+  const { CN_BG, CN_BD, US_BG, US_BD } = bgColors();
+  const yFormatter = mode === "return"
+    ? ((v) => v.toFixed(1) + "%")
+    : ((v) => "$" + v.toFixed(1));
+  const labelFormatter = mode === "return"
+    ? ((p) => p.value == null ? "" : p.value.toFixed(2) + "%")
+    : ((p) => p.value == null ? "" : "$" + p.value.toFixed(2));
 
   const opt = {
     backgroundColor: "transparent",
@@ -1084,8 +1204,8 @@ function renderRegimeHourly(rh) {
         }
         const cls = r.avg_pnl >= 0 ? C.accent : C.neg;
         return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">UTC ${cats[p.dataIndex]}:00</div>
-          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtUsd(r.avg_pnl, 3, true)}</div>
-          <div style="font-size:10px;color:${C.textMid}">total ${fmtUsd(r.total_pnl, 2, true)} · ${r.n_markets} markets</div>`;
+          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtMetric(r.avg_pnl, mode, true, 3)}</div>
+          <div style="font-size:10px;color:${C.textMid}">total ${fmtMetric(r.total_pnl, mode, true, 2)} · ${r.n_markets} markets</div>`;
       },
     },
     xAxis: {
@@ -1099,7 +1219,7 @@ function renderRegimeHourly(rh) {
     },
     yAxis: {
       type: "value", ...axisCommon,
-      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(1) },
+      axisLabel: { ...axisCommon.axisLabel, formatter: yFormatter },
     },
     series: [{
       type: "bar",
@@ -1107,7 +1227,7 @@ function renderRegimeHourly(rh) {
       barWidth: "62%",
       label: {
         show: true, position: "top",
-        formatter: (p) => p.value == null ? "" : "$" + p.value.toFixed(2),
+        formatter: labelFormatter,
         color: C.textHi, fontFamily: "JetBrains Mono", fontSize: 9, fontWeight: 600,
       },
       markLine: {
@@ -1144,10 +1264,14 @@ function renderRegimeHourly(rh) {
 //   CN-only:  [112, 123]
 //   Overlap:  [124, 159]   (deeper color)
 //   US-only:  [160, 167] ∪ [0, 3]
-function renderRegimeWeekly(rw) {
+function renderRegimeWeekly(rw, mode) {
   const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const cats = rw.map(r => String(r.idx));   // category names = stringified idx
   const vals = rw.map(r => r.n_markets > 0 ? r.avg_pnl : null);
+  const { CN_BG, CN_BD, US_BG, US_BD, OL_BG, OL_BD } = bgColors();
+  const yFormatter = mode === "return"
+    ? ((v) => v.toFixed(1) + "%")
+    : ((v) => "$" + v.toFixed(1));
 
   const opt = {
     backgroundColor: "transparent",
@@ -1162,8 +1286,8 @@ function renderRegimeWeekly(rw) {
         }
         const cls = r.avg_pnl >= 0 ? C.accent : C.neg;
         return `<div style="font-size:10px;color:${C.textLo};margin-bottom:4px">${lbl}</div>
-          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtUsd(r.avg_pnl, 3, true)}</div>
-          <div style="font-size:10px;color:${C.textMid}">total ${fmtUsd(r.total_pnl, 2, true)} · ${r.n_markets} markets</div>`;
+          <div style="font-size:13px;color:${cls};font-weight:600">avg ${fmtMetric(r.avg_pnl, mode, true, 3)}</div>
+          <div style="font-size:10px;color:${C.textMid}">total ${fmtMetric(r.total_pnl, mode, true, 2)} · ${r.n_markets} markets</div>`;
       },
     },
     xAxis: {
@@ -1193,7 +1317,7 @@ function renderRegimeWeekly(rw) {
     },
     yAxis: {
       type: "value", ...axisCommon,
-      axisLabel: { ...axisCommon.axisLabel, formatter: (v) => "$" + v.toFixed(1) },
+      axisLabel: { ...axisCommon.axisLabel, formatter: yFormatter },
     },
     series: [{
       type: "bar",
@@ -1232,29 +1356,37 @@ function renderRegimeWeekly(rw) {
 }
 
 // ============== Tables / extremes ==================================
-function renderRecent(rows) {
+function renderRecent(rows, mode) {
   const body = document.getElementById("recent-body");
+  const header = document.getElementById("recent-pnl-th");
+  if (header) header.textContent = mode === "return" ? "RETURN" : "PnL";
   body.innerHTML = rows.map(r => {
     const dt = new Date(r.market_end_ts * 1000);
     const pad = n => String(n).padStart(2, "0");
     const ts = `${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}`;
     const wap = r.weighted_entry_price != null ? r.weighted_entry_price.toFixed(3) : "—";
-    const cls = r.pnl > 0 ? "pos" : (r.pnl < 0 ? "neg" : "");
+    const metric = mode === "return" ? r.return_pct : r.pnl;
+    const cls = metric > 0 ? "pos" : (metric < 0 ? "neg" : "");
     const sideCls = (r.outcome || "").toLowerCase() === "up" ? "up" : "down";
     const titleShort = (r.title || "").replace(/Bitcoin Up or Down - /, "").replace(/Bitcoin /,"BTC ").replace(/ ET/,"ET");
+    const metricStr = mode === "return"
+      ? (metric == null ? "—" : fmt(metric, 2, true) + "%")
+      : fmt(r.pnl, 2, true);
     return `<tr>
       <td>${ts}</td>
       <td class="title">${titleShort}</td>
       <td><span class="tag ${sideCls}">${(r.outcome || "—").toUpperCase()}</span></td>
       <td class="right">${wap}</td>
       <td class="right">${r.total_buy_size.toFixed(2)}</td>
-      <td class="right ${cls}">${fmt(r.pnl, 2, true)}</td>
+      <td class="right ${cls}">${metricStr}</td>
     </tr>`;
   }).join("");
 }
 
-function renderWeekly(rows) {
+function renderWeekly(rows, mode) {
   const body = document.getElementById("weekly-body");
+  const header = document.getElementById("weekly-pnl-th");
+  if (header) header.textContent = mode === "return" ? "TOTAL RETURN" : "TOTAL PnL";
   if (!rows || !rows.length) {
     body.innerHTML = `<tr><td colspan="6" style="color:${C.textLo};text-align:center;padding:14px;">no weekly data yet</td></tr>`;
     return;
@@ -1263,55 +1395,103 @@ function renderWeekly(rows) {
   body.innerHTML = sorted.map(w => {
     const pnlCls = w.total_pnl > 0 ? "pos" : (w.total_pnl < 0 ? "neg" : "");
     const winRate = w.n_markets > 0 ? w.win_rate_pct.toFixed(1) + "%" : "—";
+    const metricStr = mode === "return"
+      ? fmt(w.total_pnl, 2, true) + "%"
+      : fmt(w.total_pnl, 2, true);
     return `<tr>
       <td class="title">${w.week_start} → ${w.week_end}</td>
       <td class="right">${w.n_markets}</td>
       <td class="right">${w.n_winners} / ${w.n_losers}</td>
       <td class="right">${winRate}</td>
-      <td class="right ${pnlCls}">${fmt(w.total_pnl, 2, true)}</td>
+      <td class="right ${pnlCls}">${metricStr}</td>
       <td class="right gold">${fmt(w.total_rebates, 4)}</td>
     </tr>`;
   }).join("");
 }
 
-function renderExtremes(extremes) {
+function renderExtremes(extremes, mode) {
   const fill = (kind, m) => {
-    if (!m) return;
-    document.getElementById(`${kind}-val`).textContent = fmtUsd(m.pnl, 2, true);
+    if (!m) {
+      document.getElementById(`${kind}-val`).textContent = "—";
+      document.getElementById(`${kind}-title`).textContent = "—";
+      document.getElementById(`${kind}-stats`).innerHTML = "";
+      return;
+    }
+    const valEl = document.getElementById(`${kind}-val`);
+    valEl.textContent = mode === "return"
+      ? (m.return_pct == null ? "—" : fmt(m.return_pct, 2, true) + "%")
+      : fmtUsd(m.pnl, 2, true);
     document.getElementById(`${kind}-title`).textContent = m.title || "—";
     const wap = m.weighted_entry_price != null ? m.weighted_entry_price.toFixed(3) : "—";
     const dt = new Date(m.market_end_ts * 1000);
     const pad = n => String(n).padStart(2, "0");
     const ts = `${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())} UTC`;
+    const sharesPart = (mode === "return" && m.shares != null)
+      ? `<span>SHARES <b>${m.shares}</b></span>` : "";
     document.getElementById(`${kind}-stats`).innerHTML =
       `<span>WAP <b>${wap}</b></span><span>SIZE <b>${m.total_buy_size.toFixed(2)}</b></span>` +
+      sharesPart +
       `<span>OUTCOME <b>${m.outcome || "—"}</b></span><span>END <b>${ts}</b></span>`;
   };
-  fill("best", extremes.best);
-  fill("worst", extremes.worst);
+  fill("best", extremes && extremes.best);
+  fill("worst", extremes && extremes.worst);
 }
 
 // ============== KPI fill ===========================================
-function renderKpis(k) {
-  const tiles = document.querySelectorAll(".kpi .value");
-  // order matches DOM
-  const targets = [
-    k.total_pnl,
-    k.n_markets,
-    k.win_rate_pct,
-    k.rot,
-    k.total_rebates,
-    k.running_days,
-  ];
-  tiles.forEach((el, i) => animateValue(el, targets[i]));
+function setKpiConfig(tileId, cfg) {
+  const tile = document.getElementById(tileId);
+  if (!tile) return;
+  const label = tile.querySelector("[data-kpi-label]");
+  const value = tile.querySelector(".value");
+  const sub = tile.querySelector("[data-kpi-sub]");
+  if (label && cfg.label != null) label.textContent = cfg.label;
+  if (sub && cfg.sub != null && !sub.id) sub.textContent = cfg.sub;
+  if (value) {
+    // re-spec the formatting attributes
+    for (const k of ["prefix", "suffix", "decimals", "signed"]) {
+      delete value.dataset[k];
+    }
+    if (cfg.prefix) value.dataset.prefix = cfg.prefix;
+    if (cfg.suffix) value.dataset.suffix = cfg.suffix;
+    if (cfg.decimals != null) value.dataset.decimals = String(cfg.decimals);
+    if (cfg.signed) value.dataset.signed = "1";
+    animateValue(value, cfg.target);
+  }
+}
 
-  // sign coloring on PnL + ROT
-  const pnlTile = document.getElementById("kpi-pnl");
-  pnlTile.classList.toggle("pos", k.total_pnl > 0);
-  pnlTile.classList.toggle("neg", k.total_pnl < 0);
-  const rotTile = document.getElementById("kpi-rot");
-  rotTile.classList.toggle("pos", k.rot > 0);
-  rotTile.classList.toggle("neg", k.rot < 0);
+function renderKpis(d) {
+  const useReturn = currentMode === "return";
+  const k = useReturn ? d.return_view.kpi : d.kpi;
+
+  if (useReturn) {
+    setKpiConfig("kpi-pnl",     { label: "CUM Return", sub: "Σ pnl / shares",     target: k.total_return_pct,  suffix: "%", decimals: 2, signed: true });
+    setKpiConfig("kpi-markets", { label: "Markets",    sub: "In return window",    target: k.n_markets,          decimals: 0 });
+    setKpiConfig("kpi-win",     { label: "Win Rate",                                target: k.win_rate_pct,       suffix: "%", decimals: 1 });
+    setKpiConfig("kpi-rot",     { label: "Avg Return", sub: "Per-market mean",     target: k.avg_return_pct,     suffix: "%", decimals: 2, signed: true });
+    setKpiConfig("kpi-rebates", { label: "Rebates",    sub: "USDC (unscaled)",     target: k.total_rebates,      prefix: "$", decimals: 4 });
+    setKpiConfig("kpi-days",    { label: "Days Live",  sub: "Return-window days",  target: k.running_days,       decimals: 0 });
+
+    const pnlTile = document.getElementById("kpi-pnl");
+    pnlTile.classList.toggle("pos", k.total_return_pct > 0);
+    pnlTile.classList.toggle("neg", k.total_return_pct < 0);
+    const rotTile = document.getElementById("kpi-rot");
+    rotTile.classList.toggle("pos", k.avg_return_pct > 0);
+    rotTile.classList.toggle("neg", k.avg_return_pct < 0);
+  } else {
+    setKpiConfig("kpi-pnl",     { label: "CUM PnL",   sub: "USDC realized",        target: k.total_pnl,          prefix: "$", decimals: 2, signed: true });
+    setKpiConfig("kpi-markets", { label: "Markets",   sub: "5-min markets traded", target: k.n_markets,          decimals: 0 });
+    setKpiConfig("kpi-win",     { label: "Win Rate",                                target: k.win_rate_pct,       suffix: "%", decimals: 1 });
+    setKpiConfig("kpi-rot",     { label: "ROT",       sub: "PnL per Σ buy_size",   target: k.rot,                decimals: 4, signed: true });
+    setKpiConfig("kpi-rebates", { label: "Rebates",   sub: "Maker rebate accrued", target: k.total_rebates,      prefix: "$", decimals: 4 });
+    setKpiConfig("kpi-days",    { label: "Days Live", sub: "Calendar UTC days",    target: k.running_days,       decimals: 0 });
+
+    const pnlTile = document.getElementById("kpi-pnl");
+    pnlTile.classList.toggle("pos", k.total_pnl > 0);
+    pnlTile.classList.toggle("neg", k.total_pnl < 0);
+    const rotTile = document.getElementById("kpi-rot");
+    rotTile.classList.toggle("pos", k.rot > 0);
+    rotTile.classList.toggle("neg", k.rot < 0);
+  }
 
   document.getElementById("win-sub").textContent =
     `${k.n_winners} W / ${k.n_losers} L`;
@@ -1333,11 +1513,53 @@ function startCountdown() {
   }, 1000);
 }
 
+function renderAll(d) {
+  refreshPalette();
+  const useReturn = currentMode === "return" && d.return_view;
+  renderKpis(d);
+  if (useReturn) {
+    const rv = d.return_view;
+    renderCumulative(rv.cumulative_return, "return");
+    renderRebates(d.daily_rebates);   // rebates always raw USDC
+    renderRegimeAvg(rv.regime, "return");
+    renderRegimeCnt(rv.regime);
+    if (rv.regime_hourly) renderRegimeHourly(rv.regime_hourly, "return");
+    if (rv.regime_weekly) renderRegimeWeekly(rv.regime_weekly, "return");
+    renderRecent(rv.recent, "return");
+    renderExtremes(rv.extremes, "return");
+    if (rv.weekly_return_hkt) renderWeekly(rv.weekly_return_hkt, "return");
+  } else {
+    renderCumulative(d.cumulative_pnl, "usdc");
+    renderRebates(d.daily_rebates);
+    renderRegimeAvg(d.regime, "usdc");
+    renderRegimeCnt(d.regime);
+    if (d.regime_hourly) renderRegimeHourly(d.regime_hourly, "usdc");
+    if (d.regime_weekly) renderRegimeWeekly(d.regime_weekly, "usdc");
+    renderRecent(d.recent, "usdc");
+    renderExtremes(d.extremes, "usdc");
+    if (d.weekly_pnl_hkt) renderWeekly(d.weekly_pnl_hkt, "usdc");
+  }
+}
+
+function setMode(mode) {
+  if (mode !== "usdc" && mode !== "return") return;
+  if (mode === currentMode) return;
+  currentMode = mode;
+  document.body.classList.toggle("return-mode", mode === "return");
+  for (const b of document.querySelectorAll("#view-toggle button")) {
+    const active = b.dataset.mode === mode;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", active ? "true" : "false");
+  }
+  if (lastData) renderAll(lastData);
+}
+
 async function loadData(initial) {
   try {
     const url = `${DATA_URL}?t=${Date.now()}`;
     const r = await fetch(url, { cache: "no-store" });
     const d = await r.json();
+    lastData = d;
 
     document.getElementById("wallet").textContent = shortAddr(d.meta.wallet);
     document.getElementById("record-count").textContent = `${d.meta.n_btc_records} BTC / ${d.meta.n_total_records} TOTAL`;
@@ -1346,16 +1568,7 @@ async function loadData(initial) {
     document.getElementById("last-updated").textContent =
       `${pad(upd.getUTCMonth()+1)}-${pad(upd.getUTCDate())} ${pad(upd.getUTCHours())}:${pad(upd.getUTCMinutes())}:${pad(upd.getUTCSeconds())} UTC`;
 
-    renderKpis(d.kpi);
-    renderCumulative(d.cumulative_pnl);
-    renderRebates(d.daily_rebates);
-    renderRegimeAvg(d.regime);
-    renderRegimeCnt(d.regime);
-    if (d.regime_hourly) renderRegimeHourly(d.regime_hourly);
-    if (d.regime_weekly) renderRegimeWeekly(d.regime_weekly);
-    renderRecent(d.recent);
-    renderExtremes(d.extremes);
-    if (d.weekly_pnl_hkt) renderWeekly(d.weekly_pnl_hkt);
+    renderAll(d);
 
     if (initial) {
       const l = document.getElementById("loading");
@@ -1371,6 +1584,10 @@ async function loadData(initial) {
 // ============== Boot ===============================================
 window.addEventListener("DOMContentLoaded", () => {
   initCharts();
+  document.getElementById("view-toggle").addEventListener("click", (e) => {
+    const t = e.target.closest("button[data-mode]");
+    if (t) setMode(t.dataset.mode);
+  });
   loadData(true);
   startCountdown();
 });

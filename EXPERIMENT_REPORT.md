@@ -277,3 +277,75 @@ Two new ECharts panels using existing `axisCommon`/`tooltipBase` theme:
   `calc_pnl.py` + `index.html`), so the bot regenerates `data.json`
   with the new schema immediately. Pages auto-redeploys the new
   `index.html` within ~1 min of push.
+
+---
+
+## Update — 2026-05-14 — Return view (PnL / shares · light theme)
+
+### Request
+
+User added a `shares` parameter to the live market-maker bot partway
+through the data window, so cumulative USDC PnL is no longer comparable
+across trades — a $1 win at `shares=10` is a 10% return per share, but
+the same $1 at `shares=50` is only a 2% return. They want a toggle that
+re-expresses every dashboard value as `pnl / shares * 100%` (a
+"return-per-share %") and renders the page in light mode in that view.
+
+### Shares schedule (extracted from bot startup JSONs)
+
+Source: `C:\Users\User\Desktop\claude_workspace\crypto_up_or_down_trading\logs\bitcoin_5min\startup_*.json`.
+
+| UTC range | Shares |
+|---|---|
+| before 2026-05-05 04:48:55 | n/a (bot not trade-enabled — excluded from return view) |
+| 2026-05-05 04:48:55 → 2026-05-11 13:58:18 | **10** |
+| 2026-05-11 13:58:19 → present | **50** |
+
+User confirmed: pre-trade-enabled trades are excluded from the return
+view entirely; rebates stay in raw USDC (wallet-level, not per-market);
+return unit is plain % (`pnl / shares × 100`).
+
+### Backend (`calc_pnl.py`)
+
+- Hardcoded `SHARES_SCHEDULE` constant + `shares_for_ts(ts)` lookup.
+- `aggregate_per_market` now stamps each market with the `shares` active
+  at its `market_end_ts`, and computes `return_pct = pnl / shares * 100`
+  (or `None` if outside the bot's live window).
+- Parameterised `regime_table`, `regime_hourly_table`,
+  `regime_weekly_table`, `build_cumulative_series`,
+  `build_weekly_pnl_hkt` with a `metric_col` kwarg so the same
+  aggregation logic feeds both the USDC view and the return view.
+- `data.json` gains a `return_view` subtree mirroring the top-level
+  shape (`kpi`, `cumulative_return`, `regime`, `regime_hourly`,
+  `regime_weekly`, `weekly_return_hkt`, `extremes`, `recent`) plus the
+  `shares_schedule` itself for the frontend. `daily_rebates` is shared.
+
+### Frontend (`index.html`)
+
+- New view toggle pill in the topbar (`USDC ↔ Return %`). State lives
+  in a module-level `currentMode`.
+- All theme colors became CSS variables; a `body.return-mode` block
+  overrides the palette with a clean light theme (off-white panels,
+  teal accent, crimson neg). The ECharts palette object is now
+  re-read from CSS on every render via `refreshPalette()`, so charts
+  inherit theme switches without a reload.
+- Render functions now accept a `mode` argument and pick the correct
+  axis formatter (`$X` vs `X%`), tooltip formatter, bar-glow intensity,
+  and source data. `renderKpis` rewrites tile labels/subs/formatting
+  (e.g. tile 3 becomes "Avg Return %" instead of "ROT").
+- Tables: `recent-pnl-th` and `weekly-pnl-th` swap to "RETURN" /
+  "TOTAL RETURN" in return mode; per-row metric formatted as `%`.
+- Rebates panel always shows raw USDC (per user decision).
+
+### Verification
+
+- `python calc_pnl.py` against the existing cache emits the expected
+  `return_view`: 1011 markets in the return window (vs 1082 total),
+  total return = +534.36%, best market = +158.0% (`pnl=$15.8` at
+  `shares=10`), worst = −170.35%, weekly rows include both 5/1–5/7
+  (return mode reports the truncated count, since 5/4 trades fall
+  outside the window).
+- `node --check` parses the inline `<script>`.
+- `python -m http.server` + browser smoke test: toggle flips the
+  palette + data, KPI tiles re-label, ECharts axes switch unit, and
+  the rebates bar chart stays in USDC.

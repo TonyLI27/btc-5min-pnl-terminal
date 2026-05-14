@@ -33,6 +33,30 @@ PAGE_LIMIT = 500
 MAX_OFFSET = 10000
 INCREMENTAL_BUFFER_S = 3600
 
+# Shares-per-market schedule, extracted from bot startup JSONs in
+# C:\Users\User\Desktop\claude_workspace\crypto_up_or_down_trading\logs\bitcoin_5min.
+# Markets ending strictly before the first interval start are excluded from the
+# return view (no shares context — pre-trade-enabled window).
+# (start_utc_epoch, shares).
+SHARES_SCHEDULE = [
+    (int(datetime(2026, 5, 5,  4, 48, 55, tzinfo=timezone.utc).timestamp()), 10.0),
+    (int(datetime(2026, 5, 11, 13, 58, 19, tzinfo=timezone.utc).timestamp()), 50.0),
+]
+RETURN_VIEW_START_TS = SHARES_SCHEDULE[0][0]
+
+
+def shares_for_ts(ts: int) -> float | None:
+    """Return active shares for a market_end_ts. None if before bot went live."""
+    if ts < SHARES_SCHEDULE[0][0]:
+        return None
+    last = SHARES_SCHEDULE[0][1]
+    for start, sh in SHARES_SCHEDULE:
+        if ts >= start:
+            last = sh
+        else:
+            break
+    return last
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 CACHE_FILE = SCRIPT_DIR / "activity_cache.json"
 DATA_FILE = SCRIPT_DIR / "data.json"
@@ -197,27 +221,33 @@ def aggregate_per_market(df: pd.DataFrame) -> pd.DataFrame:
         end_ts = (g["market_end_ts"].dropna().iloc[0]
                   if g["market_end_ts"].notna().any()
                   else g["timestamp"].max())
+        end_ts = int(end_ts)
+        pnl = float(g["cash_delta"].sum())
+        shares = shares_for_ts(end_ts)
+        return_pct = (pnl / shares * 100.0) if shares else None
         rows.append({
             "market_id": mid,
             "title": g["title"].iloc[0],
-            "market_end_ts": int(end_ts),
-            "pnl": float(g["cash_delta"].sum()),
+            "market_end_ts": end_ts,
+            "pnl": pnl,
             "n_buys": int(len(buys)),
             "total_buy_size": float(size_sum),
             "weighted_entry_price": float(wap) if not pd.isna(wap) else None,
             "outcome": (buys["outcome"].iloc[0] if len(buys) else ""),
+            "shares": shares,
+            "return_pct": return_pct,
         })
     return (pd.DataFrame(rows)
             .sort_values("market_end_ts")
             .reset_index(drop=True))
 
 
-def regime_table(per_market: pd.DataFrame) -> pd.DataFrame:
+def regime_table(per_market: pd.DataFrame, metric_col: str = "pnl") -> pd.DataFrame:
     bins = np.round(np.arange(0.0, 1.0001, 0.1), 2)
     labels = [f"[{bins[i]:.1f},{bins[i+1]:.1f})" for i in range(len(bins) - 1)]
     labels[-1] = f"[{bins[-2]:.1f},{bins[-1]:.1f}]"
 
-    valid = per_market.dropna(subset=["weighted_entry_price"]).copy()
+    valid = per_market.dropna(subset=["weighted_entry_price", metric_col]).copy()
     valid["bin"] = pd.cut(valid["weighted_entry_price"],
                           bins=bins, labels=labels,
                           include_lowest=True, right=False)
@@ -225,7 +255,7 @@ def regime_table(per_market: pd.DataFrame) -> pd.DataFrame:
     if edge.any():
         valid.loc[edge, "bin"] = labels[-1]
 
-    g = valid.groupby("bin", observed=False)["pnl"].agg(["mean", "sum", "count"])
+    g = valid.groupby("bin", observed=False)[metric_col].agg(["mean", "sum", "count"])
     g = g.rename(columns={"mean": "avg_pnl", "sum": "total_pnl", "count": "n_markets"})
     return g.reindex(labels).reset_index()
 
@@ -237,16 +267,18 @@ def regime_table(per_market: pd.DataFrame) -> pd.DataFrame:
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
-def regime_hourly_table(per_market: pd.DataFrame) -> list[dict]:
+def regime_hourly_table(per_market: pd.DataFrame, metric_col: str = "pnl") -> list[dict]:
     """Bucket per-market PnL by UTC hour-of-day of market_end_ts. 24 dense buckets."""
     base = [{"hour": h, "avg_pnl": 0.0, "total_pnl": 0.0, "n_markets": 0}
             for h in range(24)]
     if per_market.empty:
         return base
 
-    df = per_market.copy()
+    df = per_market.dropna(subset=[metric_col]).copy()
+    if df.empty:
+        return base
     df["hour"] = pd.to_datetime(df["market_end_ts"], unit="s", utc=True).dt.hour
-    g = df.groupby("hour")["pnl"].agg(["mean", "sum", "count"])
+    g = df.groupby("hour")[metric_col].agg(["mean", "sum", "count"])
     for h, row in g.iterrows():
         base[int(h)] = {
             "hour": int(h),
@@ -257,7 +289,7 @@ def regime_hourly_table(per_market: pd.DataFrame) -> list[dict]:
     return base
 
 
-def regime_weekly_table(per_market: pd.DataFrame) -> list[dict]:
+def regime_weekly_table(per_market: pd.DataFrame, metric_col: str = "pnl") -> list[dict]:
     """Bucket per-market PnL by hour-of-week (Mon UTC 00:00 = idx 0 ... Sun UTC 23:00 = idx 167)."""
     base = [{
         "idx": i,
@@ -270,10 +302,12 @@ def regime_weekly_table(per_market: pd.DataFrame) -> list[dict]:
     if per_market.empty:
         return base
 
-    dt = pd.to_datetime(per_market["market_end_ts"], unit="s", utc=True)
-    df = per_market.copy()
+    df = per_market.dropna(subset=[metric_col]).copy()
+    if df.empty:
+        return base
+    dt = pd.to_datetime(df["market_end_ts"], unit="s", utc=True)
     df["idx"] = dt.dt.dayofweek * 24 + dt.dt.hour  # Mon=0, Sun=6
-    g = df.groupby("idx")["pnl"].agg(["mean", "sum", "count"])
+    g = df.groupby("idx")[metric_col].agg(["mean", "sum", "count"])
     for i, row in g.iterrows():
         base[int(i)].update({
             "avg_pnl": float(row["mean"]),
@@ -305,8 +339,14 @@ def hkt_week_bounds(epoch_s: int) -> tuple:
     return start, end
 
 
-def build_weekly_pnl_hkt(per_market: pd.DataFrame, records: list[dict]) -> list[dict]:
-    """Aggregate per-market PnL and wallet-wide rebates into HKT Fri→Thu weeks."""
+def build_weekly_pnl_hkt(per_market: pd.DataFrame, records: list[dict],
+                         metric_col: str = "pnl") -> list[dict]:
+    """Aggregate per-market PnL and wallet-wide rebates into HKT Fri→Thu weeks.
+
+    Rebates always remain in raw USDC; only the trade metric is parameterized.
+    Markets with NaN metric_col (e.g. pre-trade-enabled window in return view)
+    are skipped — but rebates within those weeks still surface.
+    """
     weeks: dict = {}
 
     def bucket_for(ts: int):
@@ -318,8 +358,11 @@ def build_weekly_pnl_hkt(per_market: pd.DataFrame, records: list[dict]) -> list[
         return weeks[s]
 
     for _, r in per_market.iterrows():
+        v = r[metric_col]
+        if v is None or pd.isna(v):
+            continue
         b = bucket_for(int(r["market_end_ts"]))
-        v = float(r["pnl"])
+        v = float(v)
         b["pnl"] += v
         b["n"] += 1
         if v > 0:
@@ -355,12 +398,15 @@ def build_weekly_pnl_hkt(per_market: pd.DataFrame, records: list[dict]) -> list[
 # Cumulative time series, resampled to 5-min buckets
 # ---------------------------------------------------------------------------
 
-def build_cumulative_series(per_market: pd.DataFrame) -> list[dict]:
+def build_cumulative_series(per_market: pd.DataFrame, metric_col: str = "pnl") -> list[dict]:
     if per_market.empty:
         return []
+    df = per_market.dropna(subset=[metric_col])
+    if df.empty:
+        return []
     s = pd.Series(
-        per_market["pnl"].values,
-        index=pd.to_datetime(per_market["market_end_ts"], unit="s", utc=True),
+        df[metric_col].values,
+        index=pd.to_datetime(df["market_end_ts"], unit="s", utc=True),
     ).sort_index()
     binned = s.resample("5min", label="right", closed="right").sum()
     cum = binned.cumsum()
@@ -480,6 +526,10 @@ def main() -> None:
             "n_buys": int(row["n_buys"]),
             "total_buy_size": float(row["total_buy_size"]),
             "pnl": float(row["pnl"]),
+            "shares": (float(row["shares"]) if row["shares"] is not None
+                       and not pd.isna(row["shares"]) else None),
+            "return_pct": (float(row["return_pct"]) if row["return_pct"] is not None
+                           and not pd.isna(row["return_pct"]) else None),
         }
 
     extremes = {}
@@ -503,6 +553,84 @@ def main() -> None:
             "n_markets": (int(r["n_markets"]) if not pd.isna(r["n_markets"]) else 0),
             "total_pnl": (float(r["total_pnl"]) if not pd.isna(r["total_pnl"]) else 0.0),
         })
+
+    # =====================================================================
+    # Return view — same shape as the USDC view, but values are
+    # return_pct = pnl / shares_at_market_end_ts * 100.
+    # Markets before the bot's first trade-enabled startup (no shares) are
+    # excluded from every aggregate here.
+    # =====================================================================
+    rv_pm = per_market.dropna(subset=["return_pct"]) if len(per_market) else per_market
+    rv_n_markets = int(len(rv_pm))
+    rv_n_winners = int((rv_pm["return_pct"] > 0).sum()) if rv_n_markets else 0
+    rv_n_losers = int((rv_pm["return_pct"] < 0).sum()) if rv_n_markets else 0
+    rv_win_rate = (rv_n_winners / rv_n_markets * 100) if rv_n_markets else 0.0
+    rv_total_return = float(rv_pm["return_pct"].sum()) if rv_n_markets else 0.0
+    rv_avg_return = float(rv_pm["return_pct"].mean()) if rv_n_markets else 0.0
+    rv_median_return = float(rv_pm["return_pct"].median()) if rv_n_markets else 0.0
+
+    if rv_n_markets:
+        rv_first_end = int(rv_pm["market_end_ts"].min())
+        rv_last_end = int(rv_pm["market_end_ts"].max())
+        rv_first_dt = datetime.fromtimestamp(rv_first_end, tz=timezone.utc)
+        rv_last_dt = datetime.fromtimestamp(rv_last_end, tz=timezone.utc)
+        rv_running_days = (rv_last_dt.date() - rv_first_dt.date()).days + 1
+    else:
+        rv_first_end = rv_last_end = 0
+        rv_running_days = 0
+
+    rv_cumulative = build_cumulative_series(rv_pm, metric_col="return_pct") if rv_n_markets else []
+    rv_regime_df = (regime_table(rv_pm, metric_col="return_pct")
+                    if rv_n_markets else pd.DataFrame())
+    rv_regime_hourly = regime_hourly_table(rv_pm, metric_col="return_pct")
+    rv_regime_weekly = regime_weekly_table(rv_pm, metric_col="return_pct")
+    rv_weekly_hkt = (build_weekly_pnl_hkt(rv_pm, records, metric_col="return_pct")
+                     if rv_n_markets else [])
+
+    rv_extremes = {}
+    if rv_n_markets:
+        rv_best = rv_pm.loc[rv_pm["return_pct"].idxmax()]
+        rv_worst = rv_pm.loc[rv_pm["return_pct"].idxmin()]
+        rv_extremes = {"best": _market_summary(rv_best), "worst": _market_summary(rv_worst)}
+
+    rv_recent = []
+    if rv_n_markets:
+        rv_rec_df = rv_pm.sort_values("market_end_ts", ascending=False).head(24)
+        rv_recent = [_market_summary(r) for _, r in rv_rec_df.iterrows()]
+
+    rv_regime_list = []
+    for _, r in rv_regime_df.iterrows():
+        rv_regime_list.append({
+            "bin": str(r["bin"]),
+            "avg_pnl": (float(r["avg_pnl"]) if not pd.isna(r["avg_pnl"]) else 0.0),
+            "n_markets": (int(r["n_markets"]) if not pd.isna(r["n_markets"]) else 0),
+            "total_pnl": (float(r["total_pnl"]) if not pd.isna(r["total_pnl"]) else 0.0),
+        })
+
+    return_view = {
+        "window_start_ts": RETURN_VIEW_START_TS,
+        "shares_schedule": [
+            {"start_ts": s, "shares": sh} for s, sh in SHARES_SCHEDULE
+        ],
+        "kpi": {
+            "total_return_pct": rv_total_return,
+            "n_markets": rv_n_markets,
+            "n_winners": rv_n_winners,
+            "n_losers": rv_n_losers,
+            "win_rate_pct": rv_win_rate,
+            "avg_return_pct": rv_avg_return,
+            "median_return_pct": rv_median_return,
+            "running_days": rv_running_days,
+            "total_rebates": total_rebates,   # rebates stay USDC
+        },
+        "cumulative_return": rv_cumulative,
+        "regime": rv_regime_list,
+        "regime_hourly": rv_regime_hourly,
+        "regime_weekly": rv_regime_weekly,
+        "weekly_return_hkt": rv_weekly_hkt,
+        "extremes": rv_extremes,
+        "recent": rv_recent,
+    }
 
     payload = {
         "meta": {
@@ -534,6 +662,7 @@ def main() -> None:
         "weekly_pnl_hkt": weekly_pnl_hkt,
         "extremes": extremes,
         "recent": recent,
+        "return_view": return_view,
     }
 
     DATA_FILE.write_text(
