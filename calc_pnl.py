@@ -24,23 +24,23 @@ import pandas as pd
 import requests
 
 
-ADDRESS = "0x6639985946d3016B83Ca5Cf1667810DAc3587202"
+ADDRESS = "0xb5410aE1C135A3a97C997600B27243d62FBd169d"
 API_URL = "https://data-api.polymarket.com/activity"
 
-START_TS = int(datetime(2026, 5, 4, 0, 0, 0, tzinfo=timezone.utc).timestamp())
+START_TS = int(datetime(2026, 5, 11, 15, 57, 7, tzinfo=timezone.utc).timestamp())
 
 PAGE_LIMIT = 500
 MAX_OFFSET = 10000
 INCREMENTAL_BUFFER_S = 3600
 
 # Shares-per-market schedule, extracted from bot startup JSONs in
-# C:\Users\User\Desktop\claude_workspace\crypto_up_or_down_trading\logs\bitcoin_5min.
+# C:\Users\User\Desktop\claude_workspace\poly_temp_bot\state\bitcoin_5min.
 # Markets ending strictly before the first interval start are excluded from the
 # return view (no shares context — pre-trade-enabled window).
 # (start_utc_epoch, shares).
 SHARES_SCHEDULE = [
-    (int(datetime(2026, 5, 5,  4, 48, 55, tzinfo=timezone.utc).timestamp()), 10.0),
-    (int(datetime(2026, 5, 11, 13, 58, 19, tzinfo=timezone.utc).timestamp()), 50.0),
+    (int(datetime(2026, 5, 11, 15, 57,  7, tzinfo=timezone.utc).timestamp()), 5.0),
+    (int(datetime(2026, 5, 14,  2, 46, 57, tzinfo=timezone.utc).timestamp()), 100.0),
 ]
 RETURN_VIEW_START_TS = SHARES_SCHEDULE[0][0]
 

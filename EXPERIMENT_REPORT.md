@@ -349,3 +349,61 @@ return unit is plain % (`pnl / shares × 100`).
 - `python -m http.server` + browser smoke test: toggle flips the
   palette + data, KPI tiles re-label, ECharts axes switch unit, and
   the rebates bar chart stays in USDC.
+
+---
+
+## Update — 2026-05-15 — Account switch (funder → poly_temp_bot deposit wallet)
+
+### Request
+
+User switched the live trading account. Archive the old account's
+dashboard data, retarget `calc_pnl.py` at the new funder wallet
+(read from `claude_workspace\poly_temp_bot\config.yaml` + `creds.json`),
+and regenerate the dashboard for the new account.
+
+### Confirmed choices
+
+- **New funder address**: `0xb5410aE1C135A3a97C997600B27243d62FBd169d`
+  — agreed by both `config.yaml` (`funder_address`) and `creds.json`
+  (`funder`, `wallet: "deposit"`). The alternate `config3.yaml`
+  funder (`0x4a19d306…88a961`) is a separate config, not the
+  production account.
+- **Archive layout**: subfolder `archive/old_account_6639_7202/`
+  containing the old `data.json` + `activity_cache.json` (moved, not
+  copied, so the new run starts clean).
+- **Refresh**: regenerate `data.json` immediately for the new wallet.
+- **Shares schedule**: extracted from
+  `claude_workspace\poly_temp_bot\state\bitcoin_5min\startup_*.json`
+  (user-pointed source):
+  | UTC startup | Shares |
+  |---|---|
+  | 2026-05-11T15:57:07Z (first trade-enabled) | **5.0** |
+  | 2026-05-14T02:46:57Z (size bump) | **100.0** |
+- **`START_TS`**: bumped to `2026-05-11T15:57:07Z` (matches
+  `RETURN_VIEW_START_TS`). Reasons: (a) the new wallet has
+  pre-bot historical Polymarket activity unrelated to this strategy,
+  and (b) the API rejects pagination beyond ~offset 3000 on this
+  wallet — a tighter `START_TS` keeps every cold fetch under the
+  cap and ensures the dashboard reports only bot-attributable PnL.
+
+### Changes
+
+- `calc_pnl.py`
+  - `ADDRESS` → new funder.
+  - `START_TS` → 2026-05-11T15:57:07Z.
+  - `SHARES_SCHEDULE` → `[(2026-05-11T15:57:07Z, 5.0),
+    (2026-05-14T02:46:57Z, 100.0)]`.
+  - Inline comment now points at `poly_temp_bot\state\bitcoin_5min`
+    instead of the old `crypto_up_or_down_trading\logs` path.
+- `archive/old_account_6639_7202/` — created, holds the previous
+  `data.json` + `activity_cache.json`.
+
+### Verification
+
+- Cold fetch returned 704 raw activity rows (1 page of 500 + a 232
+  tail), 654 of them bitcoin-related, 250 markets aggregated.
+- Dashboard snapshot for the new wallet:
+  `total_pnl = -$181.28 USDC`, `win = 87.2%`, `rebates = $17.94`.
+- `data.json` regenerated in-place; `index.html` re-loads it on the
+  next 60-second poll, no further code changes needed for the
+  frontend.
