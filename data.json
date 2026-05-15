@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-05-15T06:55:04+00:00",
+    "generated_at": "2026-05-15T06:55:27+00:00",
     "wallet": "0xb5410aE1C135A3a97C997600B27243d62FBd169d",
     "window_start_ts": 1778573700,
     "window_end_ts": 1778827800,
@@ -3429,9 +3429,9 @@
     },
     {
       "bin": "[0.2,0.3)",
-      "avg_pnl": -13.386700000000003,
+      "avg_pnl": -13.3867,
       "n_markets": 2,
-      "total_pnl": -26.773400000000006
+      "total_pnl": -26.7734
     },
     {
       "bin": "[0.3,0.4)",
@@ -3545,8 +3545,8 @@
     },
     {
       "hour": 11,
-      "avg_pnl": -2.5030367000000004,
-      "total_pnl": -25.030367000000005,
+      "avg_pnl": -2.5030367,
+      "total_pnl": -25.030367,
       "n_markets": 10
     },
     {
@@ -4291,8 +4291,8 @@
       "idx": 83,
       "day": "Thu",
       "hour": 11,
-      "avg_pnl": -4.344625400000001,
-      "total_pnl": -21.723127000000005,
+      "avg_pnl": -4.3446254,
+      "total_pnl": -21.723126999999998,
       "n_markets": 5
     },
     {
@@ -5092,7 +5092,7 @@
       "title": "Bitcoin Up or Down - May 15, 1:45AM-1:50AM ET",
       "outcome": "Down",
       "market_end_ts": 1778824200,
-      "weighted_entry_price": 0.94,
+      "weighted_entry_price": 0.9399999999999998,
       "n_buys": 4,
       "total_buy_size": 100.0,
       "pnl": 6.0,
@@ -8730,9 +8730,9 @@
       },
       {
         "bin": "[0.2,0.3)",
-        "avg_pnl": -23.361700000000006,
+        "avg_pnl": -23.3617,
         "n_markets": 2,
-        "total_pnl": -46.72340000000001
+        "total_pnl": -46.7234
       },
       {
         "bin": "[0.3,0.4)",
@@ -9592,8 +9592,8 @@
         "idx": 83,
         "day": "Thu",
         "hour": 11,
-        "avg_pnl": -4.344625400000002,
-        "total_pnl": -21.72312700000001,
+        "avg_pnl": -4.3446254,
+        "total_pnl": -21.723126999999998,
         "n_markets": 5
       },
       {
@@ -10375,7 +10375,7 @@
         "title": "Bitcoin Up or Down - May 15, 1:45AM-1:50AM ET",
         "outcome": "Down",
         "market_end_ts": 1778824200,
-        "weighted_entry_price": 0.94,
+        "weighted_entry_price": 0.9399999999999998,
         "n_buys": 4,
         "total_buy_size": 100.0,
         "pnl": 6.0,
