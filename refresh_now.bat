@@ -23,7 +23,14 @@ if not exist "calc_pnl.py" (
     goto :failed
 )
 
-echo [1/4] Syncing with origin/main (rebase, prefer local data on conflicts) ...
+echo [1/4] Syncing with origin/main (rebase) ...
+rem data.json + activity_cache.json are regenerated below (step 2) and are
+rem also rewritten by the GitHub Actions cron every tick. Discard any local
+rem copy BEFORE the pull so the --autostash pop can never collide on them.
+rem (-X theirs governs only the rebase, NOT the autostash pop; a pop conflict
+rem leaves UU paths with no MERGE_HEAD and a stranded stash, which previously
+rem wedged the repo. Source-file edits still autostash normally.)
+git checkout HEAD -- data.json activity_cache.json 2>nul
 git pull --rebase -X theirs --autostash origin main
 if errorlevel 1 (
     echo.

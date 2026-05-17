@@ -5,3 +5,8 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# Local-only: old-account archive + stash backups, and the dev http server log.
+# Never belongs in the public Pages repo.
+archive/
+server.log

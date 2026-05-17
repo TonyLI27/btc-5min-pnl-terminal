@@ -407,3 +407,68 @@ and regenerate the dashboard for the new account.
 - `data.json` regenerated in-place; `index.html` re-loads it on the
   next 60-second poll, no further code changes needed for the
   frontend.
+
+---
+
+## Update — 2026-05-17 — "Can't merge" — wedged autostash-pop conflict
+
+### Request
+
+User reported the repo could not merge / refresh. Asked to read the
+project docs + code, understand the flow, and fix the root cause.
+
+### Diagnosis
+
+`refresh_now.bat:27` runs `git pull --rebase -X theirs --autostash
+origin main`. `-X theirs` only governs the rebase itself, **not** the
+post-rebase autostash pop. The autostash pop is a plain 3-way merge and
+collides on `data.json` + `activity_cache.json` — both the local script
+and the GitHub Actions cron rewrite these generated files every tick.
+
+A stash-pop conflict leaves `UU` unmerged paths but **no `MERGE_HEAD`**
+(a stash apply is not a merge) and does **not** drop the stash. The bat
+aborts; every re-run re-stashes via `--autostash`, so 3 stale `autostash`
+entries accumulated and `git pull --rebase` refused to run ("unmerged
+paths"). Self-inflicted, self-perpetuating.
+
+Verified safe: HEAD (= origin/main) already carries all feature work
+(new wallet, START_TS, SHARES_SCHEDULE, return_view, index.html
+return-mode). All 3 stashes hold only disposable regenerated data plus
+source/report deltas already superseded in HEAD. Only genuine pending
+change: staged 1-line `calc_pnl.py` comment edit (`poly_temp_bot` →
+`poly_temp_bot_stable`).
+
+### Planned approach (user-confirmed)
+
+1. Back up all 3 stashes as `.patch` files under `archive/` (safety net).
+2. `git checkout HEAD -- data.json activity_cache.json` to clear the
+   `UU` conflict; keep the staged `calc_pnl.py` comment edit.
+3. Drop the 3 stale `autostash` stashes.
+4. Regenerate `data.json` fresh via `calc_pnl.py` (live API), commit
+   `calc_pnl.py` + regenerated data, push.
+5. Harden `refresh_now.bat`: discard local `data.json`/
+   `activity_cache.json` *before* the pull (regenerated right after
+   anyway) so the autostash pop can never conflict on them again.
+
+### Results & Observations
+
+- 3 stashes backed up to `archive/stash_backup_2026-05-17/autostash_{0,1,2}.patch`
+  (0.6 / 4.2 / 0.3 MB) before any destructive step.
+- `git checkout HEAD -- data.json activity_cache.json` cleared both `UU`
+  entries; staged `calc_pnl.py` comment edit preserved untouched.
+- 3 stale `autostash` stashes dropped; `git stash list` now empty.
+- `calc_pnl.py` re-run against the live API: cache 1619 → 1701 records
+  (+82), 1649 bitcoin-related. New snapshot: `total_pnl = +12.40 USDC`,
+  `markets = 509`, `win = 80.6%`, `rebates = $48.36`.
+- `refresh_now.bat` hardened: a `git checkout HEAD -- data.json
+  activity_cache.json` now runs *before* the rebase pull, so those
+  generated files never enter the autostash and the pop can no longer
+  conflict. Source-file edits still autostash normally; `-X theirs`
+  still covers genuine rebase-merge conflicts.
+- `.gitignore` now excludes `archive/` and `server.log` (local-only;
+  consistent with the 2026-05-15 decision to keep the old-account
+  archive out of the public Pages repo).
+- Open flag: the staged `calc_pnl.py` edit points the shares-schedule
+  source comment at `poly_temp_bot_stable`, whereas the recorded config
+  source-of-truth is `poly_temp_bot`. Kept the user's staged edit;
+  surfaced for confirmation (comment-only, no behavioural change).

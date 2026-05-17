@@ -34,7 +34,7 @@ MAX_OFFSET = 10000
 INCREMENTAL_BUFFER_S = 3600
 
 # Shares-per-market schedule, extracted from bot startup JSONs in
-# C:\Users\User\Desktop\claude_workspace\poly_temp_bot\state\bitcoin_5min.
+# C:\Users\User\Desktop\claude_workspace\poly_temp_bot_stable\state\bitcoin_5min.
 # Markets ending strictly before the first interval start are excluded from the
 # return view (no shares context — pre-trade-enabled window).
 # (start_utc_epoch, shares).
