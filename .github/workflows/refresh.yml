@@ -1,18 +1,12 @@
 name: refresh-pnl
 
 on:
-  schedule:
-    # GitHub Actions cron has ~5–15 min real-world latency.
-    # Every 10 minutes is a sensible cap for "live" without hammering the API.
-    - cron: "*/10 * * * *"
+  # Auto-refresh disabled by user request (2026-05-17): no cron schedule and
+  # no push trigger. Data is refreshed manually via refresh_now.bat, which
+  # runs calc_pnl.py locally and pushes data.json + activity_cache.json.
+  # workflow_dispatch is kept so a run can still be triggered by hand from the
+  # GitHub Actions tab if ever needed.
   workflow_dispatch: {}
-  push:
-    branches: [main]
-    paths:
-      - "calc_pnl.py"
-      - "index.html"
-      - "requirements.txt"
-      - ".github/workflows/refresh.yml"
 
 permissions:
   contents: write

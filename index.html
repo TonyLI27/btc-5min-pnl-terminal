@@ -612,8 +612,8 @@ body:not(.return-mode) .view-toggle button.active {
         <button type="button" data-mode="usdc" class="active" role="tab" aria-selected="true">USDC</button>
         <button type="button" data-mode="return" role="tab" aria-selected="false">Return %</button>
       </div>
-      <span class="status-pill live"><span class="live-dot"></span>LIVE FEED</span>
-      <span class="status-pill">REFRESH&nbsp;&nbsp;<span id="countdown">30</span>S</span>
+      <span class="status-pill">MANUAL FEED</span>
+      <span class="status-pill">REFRESH&nbsp;&nbsp;MANUAL</span>
       <span class="status-pill">UPDATED&nbsp;&nbsp;<code id="last-updated">—</code></span>
     </div>
   </div>
@@ -624,7 +624,7 @@ body:not(.return-mode) .view-toggle button.active {
       <h1>Realized <em>PnL</em> on Polymarket BTC 5-minute Markets</h1>
       <div class="desc">
         Per-market BUY + REDEEM rolled into a single PnL per 5-min market, then resampled to 5-min cumulative.
-        Maker rebate stream extracted separately as a daily series. Auto-refreshing static feed served from GitHub Pages.
+        Maker rebate stream extracted separately as a daily series. Static feed served from GitHub Pages — refresh data manually, then reload the page.
       </div>
     </div>
     <div class="wallet-pill">
@@ -849,7 +849,6 @@ function alpha(hex, a) {
   const b = parseInt(h.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${a})`;
 }
-const REFRESH_MS = 30_000;
 const DATA_URL = "./data.json";
 let currentMode = "usdc";   // 'usdc' | 'return'
 let lastData = null;
@@ -1497,21 +1496,9 @@ function renderKpis(d) {
     `${k.n_winners} W / ${k.n_losers} L`;
 }
 
-// ============== Auto refresh =======================================
-let countdownTimer = null;
-function startCountdown() {
-  let n = REFRESH_MS / 1000;
-  document.getElementById("countdown").textContent = n;
-  if (countdownTimer) clearInterval(countdownTimer);
-  countdownTimer = setInterval(() => {
-    n -= 1;
-    if (n <= 0) {
-      n = REFRESH_MS / 1000;
-      loadData(false);
-    }
-    document.getElementById("countdown").textContent = n;
-  }, 1000);
-}
+// ============== Auto refresh (disabled by user request 2026-05-17) =====
+// The page no longer polls data.json on a timer. Data is refreshed manually
+// via refresh_now.bat; reload the page in the browser to see new data.
 
 function renderAll(d) {
   refreshPalette();
@@ -1589,7 +1576,6 @@ window.addEventListener("DOMContentLoaded", () => {
     if (t) setMode(t.dataset.mode);
   });
   loadData(true);
-  startCountdown();
 });
 </script>
 

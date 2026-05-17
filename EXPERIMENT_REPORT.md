@@ -472,3 +472,48 @@ change: staged 1-line `calc_pnl.py` comment edit (`poly_temp_bot` →
   source comment at `poly_temp_bot_stable`, whereas the recorded config
   source-of-truth is `poly_temp_bot`. Kept the user's staged edit;
   surfaced for confirmation (comment-only, no behavioural change).
+
+---
+
+## Update — 2026-05-17 — Disable auto-refresh (switch to manual-only)
+
+### Request
+
+User wants all automatic refresh stopped — they will refresh manually
+from now on (via `refresh_now.bat`).
+
+### Confirmed choices
+
+- **GitHub Actions**: remove the `*/10` cron schedule AND the `push`
+  trigger; keep `workflow_dispatch` so a run can still be triggered by
+  hand from the Actions tab if ever needed.
+- **Browser**: stop the 30-second `data.json` polling entirely; the
+  page updates only on a manual browser reload.
+
+### Changes
+
+- `.github/workflows/refresh.yml` — `on:` reduced to just
+  `workflow_dispatch: {}`. No cron, no push trigger. (The commit that
+  removes the `push:` trigger does not itself trigger a run, since
+  `push` events use the workflow config of the pushed commit.)
+- `index.html`
+  - Removed `const REFRESH_MS`, the `startCountdown()` function, the
+    `setInterval` poll, the `countdownTimer`, and the boot-time
+    `startCountdown()` call. `loadData(true)` still runs once on page
+    open so the page renders current data.
+  - Status pills: `LIVE FEED` → `MANUAL FEED` (dropped the pulsing
+    `live` dot); `REFRESH 30S` countdown → static `REFRESH MANUAL`
+    (removed the now-dead `#countdown` span).
+  - Masthead description updated: "Static feed … refresh data
+    manually, then reload the page."
+  - Dead CSS rules `.status-pill.live` / `.live-dot` left in place
+    (unused, harmless — no cosmetic cleanup requested).
+
+### Verification
+
+- `grep` confirms no leftover references to `startCountdown` /
+  `REFRESH_MS` / `countdownTimer` / `#countdown` in JS.
+- Inline `<script>` passes `node --check`.
+- After push, GitHub stops auto-running `refresh-pnl`; manual refresh
+  path (`refresh_now.bat`, already hardened against the autostash-pop
+  wedge) is unchanged.
